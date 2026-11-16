@@ -1,0 +1,50 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CutForge Player</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0c0d11; overflow: hidden; }
+  body[data-theme="light"] { background: #f1f2f5; }
+  body[data-theme="light"] #msg { color: #7a8494; }
+  body.render { background: #000; }
+  body.alpha, body.alpha #stage { background: transparent !important; }
+  body:not(.render) #stage { box-shadow: 0 1px 3px rgba(0, 0, 0, .12), 0 8px 28px rgba(0, 0, 0, .10); }
+  #fit { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  #stage { position: relative; overflow: hidden; background: #000; }
+  .cf-clip { position: absolute; display: none; transform-origin: 50% 50%; }
+  .cf-inner { display: block; width: 100%; height: 100%; box-sizing: border-box; object-fit: contain; }
+  .cf-page { position: relative; overflow: hidden; }
+  .cf-page > iframe { position: absolute; border: 0; transform-origin: 0 0; background: transparent; color-scheme: normal; }
+  .cf-caption {
+    position: absolute; left: 8%; right: 8%; bottom: 7%; text-align: center; white-space: pre-line; pointer-events: none;
+    color: #fff; font: 600 44px/1.35 -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+    text-shadow: 0 2px 10px rgba(0, 0, 0, .75), 0 0 2px rgba(0, 0, 0, .9);
+  }
+  #glass { position: absolute; inset: 0; z-index: 100000; }
+  #sel { position: absolute; display: none; box-sizing: border-box; border: 1.5px solid #7aa7ff; z-index: 10; pointer-events: none; }
+  #sel i {
+    position: absolute; width: 11px; height: 11px; margin: -6.5px; background: #fff; border: 1.5px solid #7aa7ff;
+    border-radius: 50%; pointer-events: auto;
+  }
+  #sel.el { border: 1.5px dashed #ff9f43; }
+  #sel.el i { display: none; }
+  #sel i[data-h="nw"] { left: 0; top: 0; cursor: nwse-resize; }
+  #sel i[data-h="ne"] { left: 100%; top: 0; cursor: nesw-resize; }
+  #sel i[data-h="sw"] { left: 0; top: 100%; cursor: nesw-resize; }
+  #sel i[data-h="se"] { left: 100%; top: 100%; cursor: nwse-resize; }
+  #msg {
+    position: absolute; inset: 0; display: none; align-items: center; justify-content: center; text-align: center;
+    color: #9aa3b5; font: 14px/1.6 -apple-system, "PingFang SC", sans-serif; padding: 24px; white-space: pre-line;
+  }
+  body.render #glass, body.render #sel, body.render #msg { display: none !important; }
+</style>
+<style id="film-css"></style>
+</head>
+<body>
+<div id="fit"><div id="stage"><div id="glass"></div></div></div>
+<div id="sel"><i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i></div>
+<div id="msg"></div>
+<script type="module" src="/__cf__/player.js"></script>
+</body>
+</html>

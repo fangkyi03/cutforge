@@ -1,0 +1,26 @@
+{
+  "name": "cutforge",
+  "version": "0.2.0",
+  "description": "让编码智能体做视频、让人随手改的本地 IDE",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "bin": {
+    "cutforge": "bin/cutforge.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node bin/cutforge.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "codemirror": "5.65.18"
+  },
+  "homepage": "https://fangkyi03.github.io/cutforge/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fangkyi03/cutforge.git"
+  }
+}

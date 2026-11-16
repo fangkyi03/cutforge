@@ -1,0 +1,3 @@
+#!/bin/sh
+# 启动 CutForge。用法：./cutforge [open 目录 | look | render | doctor | --help]
+exec node "$(cd "$(dirname "$0")" && pwd)/bin/cutforge.mjs" "$@"

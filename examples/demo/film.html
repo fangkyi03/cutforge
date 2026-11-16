@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1920, height=1080">
+<style>
+  .card { object-fit: cover; border-radius: 40px; }
+  @keyframes rise { from { opacity: 0; translate: 0 80px; } to { opacity: 1; translate: 0 0; } }
+</style>
+</head>
+<body>
+<section>
+  <img id="logo" src="assets/logo.png#t=0,3" at="5" style="left: 1500px; top: 80px; width: 200px; rotate: 12deg">
+</section>
+<section>
+  <iframe id="title" src="scenes/title.html#t=0,5" overrides='[{"fade":[0,0.4]}]'></iframe>
+  <video id="clip" src="assets/clip.mp4#t=1,5" at="5" speed="2" volume="0.5" class="card" style="left: 320px; top: 180px; width: 1280px; height: 720px; animation: rise .6s both"></video>
+</section>
+<section>
+  <audio id="music" src="assets/music.wav" volume="0.6" overrides='[{"fade":[0.5,1.5]}]'></audio>
+</section>
+</body>
+</html>
