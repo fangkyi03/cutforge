@@ -1,0 +1,27 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: transparent; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif; }
+body{display:grid;place-items:center;color:#fff}h1{margin:0;font-size:9vw;font-weight:800;letter-spacing:-.02em;text-shadow:0 .4vw 2vw #0006}p{margin:1.5vw 0 0;font-size:2.4vw;opacity:.85;text-align:center}
+</style>
+</head>
+<body>
+<div><h1 id="t">大标题</h1><p id="s">一句副标题</p></div>
+<script type="module">
+const clamp01 = (x) => Math.min(1, Math.max(0, x));
+const ease = (x) => 1 - Math.pow(1 - clamp01(x), 3);
+const easeInOut = (x) => { x = clamp01(x); return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2; };
+const D = 3;
+function frame(t) { const a = ease(t / 0.6), b = ease((t - 0.25) / 0.6), o = 1 - ease((t - (D - 0.4)) / 0.4); document.getElementById('t').style.cssText = `opacity:${a * o};translate:0 ${(1 - a) * 3}vw`; document.getElementById('s').style.cssText = `opacity:${b * o};translate:0 ${(1 - b) * 2}vw`; }
+window.film = { duration: D, frame };
+if (!window.filmHost) {
+  const t0 = performance.now();
+  const loop = () => { frame(((performance.now() - t0) / 1000) % D); requestAnimationFrame(loop); };
+  loop();
+}
+</script>
+</body>
+</html>

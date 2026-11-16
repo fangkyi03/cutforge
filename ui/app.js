@@ -10,6 +10,7 @@ import './inspector.js';
 import { drawAgents, drawChat, onChatEvent } from './agent.js';
 import { drawProblems, onLookEvent, runLook } from './problems.js';
 import { forget } from './thumbs.js';
+import { loadLibrary } from './library.js';
 
 // ---------------------------------------------------------------- 标签、分隔条、主题
 
@@ -417,6 +418,15 @@ async function envDialog() {
   S.agents = data.agents;
   drawAgents();
   const custom = (data.config.agents || []).map((a) => ({ ...a }));
+  const gs = await api('/api/gen/status').catch(() => null);
+  const keyRows = h('div.custom');
+  if (gs) {
+    for (const [id, s] of Object.entries(gs.services)) {
+      keyRows.append(h('div.row', {}, h('b', { style: { width: '110px' } }, s.name), h('input.grow', { name: id, type: 'password', autocomplete: 'off', placeholder: gs.keys[id] ? '已保存（填新的会覆盖）' : `${s.what} · 在 ${new URL(s.url).host} 获取` })));
+    }
+    keyRows.append(h('div.row', {}, h('p.hint', { style: { flex: 1, margin: 0 } }, `语音转字幕：${gs.speech.whisper ? 'whisper.cpp 已安装' : '没有 whisper.cpp（brew install whisper-cpp）'}；${gs.speech.models.small ? '正在用更准的中文模型' : gs.speech.models.base ? '已有标准模型，中文识别一般' : '第一次使用时自动下载标准模型（约 150MB）'}`),
+      gs.speech.models.small ? null : h('button', { onclick: async () => { const g = await import('./generate.js'); g.downloadBetterModel().catch((e) => toast(e.message, 'bad')); } }, '下载更准的中文模型')));
+  }
   const rows = h('div.custom');
   const drawCustom = () => {
     rows.innerHTML = '';
@@ -436,6 +446,22 @@ async function envDialog() {
       h('i', {}, a.installed ? '●' : '○'), h('b', {}, a.name),
       h('span', { title: a.path || '' }, a.installed ? `${a.version || a.path}${a.loggedIn === false ? ' · 未登录' : a.loggedIn ? ' · 已登录' : ''}${a.tested ? '' : ' · 未实测'}` : '未安装'),
       a.installed ? null : h('code', {}, a.install))),
+    h('h4', {}, '服务密钥'),
+    h('p.hint', {}, '用于生成图片、音乐和高质量配音。密钥只存在这台电脑的 ~/.cutforge/keys.json，只在调用对应服务时发给它。留空表示不改。'),
+    keyRows,
+    h('div.row', {}, h('div.spacer'), h('button', { onclick: async () => {
+      const body = {};
+      for (const inp of keyRows.querySelectorAll('input')) if (inp.value.trim()) body[inp.name] = inp.value.trim();
+      try {
+        await api('/api/gen/keys', { method: 'POST', json: body });
+        toast('密钥已保存', 'good');
+        const g = await import('./generate.js');
+        await g.loadGenStatus();
+        envDialog();
+      } catch (e) {
+        toast(e.message, 'bad');
+      }
+    } }, '保存密钥')),
     h('h4', {}, '自定义智能体'),
     h('p.hint', {}, '任何能在命令行里不问话跑完一个任务的智能体都能接。命令里写 {prompt} 的位置会换成任务书；不写则从标准输入传入。它会在工程目录里运行。'),
     rows,
@@ -501,6 +527,11 @@ function connectEvents() {
     else if (ev.type === 'chat') onChatEvent(ev);
     else if (ev.type === 'look') onLookEvent(ev);
     else if (ev.type === 'render') onRender(ev);
+    else if (ev.type === 'model') {
+      emit('model', ev);
+      if (ev.total) setStatus(`下载识别模型 ${Math.round((ev.got / ev.total) * 100)}%`);
+      if (ev.done || ev.error) setStatus('');
+    }
     else if (ev.type === 'agent') {
       S.agentBusy = ev.state === 'start';
       emit('agentBusy');
@@ -544,6 +575,7 @@ async function boot() {
   setPlayback({});
   Object.assign(S, await api('/api/editor-state').catch(() => ({ markers: [], range: null })));
   refreshMedia();
+  loadLibrary();
   drawStyles();
   drawAgents();
   drawChat();

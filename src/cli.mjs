@@ -13,6 +13,9 @@ const HELP = `CutForge：让编码智能体做视频、让人随手改的本地 
   cutforge render [起-止]      渲染成 MP4（--fps 30  --scale 1  --out 文件）
   cutforge export <格式>        导出 gif webm mov audio stems subtitles still slides fcpxml（--t 秒 给 still 用）
   cutforge version [名字]       存一个版本；cutforge versions 列出版本
+  cutforge get voice|image|music "文字"   生成配音（--voice、--provider system|openai|elevenlabs）、图片、音乐，存到 assets/
+  cutforge transcribe <文件>    语音转字幕，生成同名 .vtt（第一次会下载约 150MB 的识别模型）
+  cutforge library [add <id>]   列出内置素材库，或把一项拷进工程（转场、标题、特效、贴纸、音效）
   cutforge jianying            导出剪映草稿到 exports/jianying/
   cutforge probe <文件>        看素材的时长、分辨率、有没有声音
   cutforge doctor              检查这台电脑缺什么
@@ -107,6 +110,40 @@ export async function main(argv) {
       return console.log(`已存版本“${v.name}”（${v.count} 个文件）`);
     }
     for (const v of await listVersions(project)) console.log(`${new Date(v.time).toLocaleString()}  ${v.name}`);
+    return;
+  }
+
+  if (cmd === 'get') {
+    const gen = await import('./gen.mjs');
+    const what = pos[1];
+    const text = pos.slice(2).join(' ');
+    const fn = { voice: gen.makeVoice, image: gen.makeImage, music: gen.makeMusic }[what];
+    if (!fn) throw new Error('用法：cutforge get voice|image|music "文字"');
+    const r = await fn({ root: project, text, prompt: text, provider: flags.provider || undefined, voice: flags.voice || undefined, seconds: flags.seconds ? Number(flags.seconds) : undefined });
+    return console.log(`已生成 ${r.file}${r.duration ? `（${r.duration.toFixed(2)} 秒，旁边有同名 .vtt 字幕${r.aligned ? '，已按语音对齐' : '，按字数估算'}）` : ''}`);
+  }
+  if (cmd === 'transcribe') {
+    const gen = await import('./gen.mjs');
+    if (!pos[1]) throw new Error('用法：cutforge transcribe <文件>');
+    if (!(await gen.speechStatus()).model) {
+      console.error('第一次使用，下载语音识别模型（约 150MB）…');
+      await gen.downloadModel();
+    }
+    const r = await gen.transcribeFile(project, pos[1], { lang: flags.lang || 'zh', reuse: false });
+    return console.log(`已生成 ${r.file}`);
+  }
+
+  if (cmd === 'library') {
+    const { libraryManifest, addToProject } = await import('./library.mjs');
+    if (pos[1] === 'add') {
+      const r = await addToProject(project, pos[2]);
+      return console.log(`已拷进工程：${r.file}${r.item.len ? `（建议时长 ${r.item.len} 秒）` : ''}`);
+    }
+    const lib = libraryManifest();
+    for (const [cat, name] of Object.entries(lib.categories)) {
+      console.log(`\n${name}`);
+      for (const it of lib.items.filter((i) => i.cat === cat)) console.log(`  ${it.id.padEnd(24)} ${it.name}${it.desc ? `：${it.desc}` : ''}`);
+    }
     return;
   }
 

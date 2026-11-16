@@ -4,6 +4,8 @@ import {
   parseFilm, updateClip, moveClip, removeClip, insertClip, splitClip, duplicateClip, addTrack, removeTrack, setTrackFlag, kindOfFile, r3,
 } from '/shared/doc.mjs';
 import { S, $, h, add, on, api, clamp, editFilm, lengthOf, localDuration, selectClip, setSelection, clipByUid, seek, toast, undo, redo, fmtTime, enc, menu, saveEditorState } from './store.js';
+import { libraryDrop } from './library.js';
+import { transcribeClip } from './generate.js';
 import { deleteMany, moveMany, toggleDisabledMany, detachAudio, copyMany, pasteMany, hasClipboard, copyAttrs, pasteAttrs } from './edit-ops.js';
 import { icon } from './icons.js';
 import { openFile } from './editor.js';
@@ -467,6 +469,8 @@ rows.addEventListener('contextmenu', (e) => {
     ['复制属性', () => copyAttrs(), { key: '⇧⌘C' }],
     ['粘贴属性', () => pasteAttrs(), { key: '⇧⌘V', disabled: locked }],
     c.kind === 'video' ? ['分离音频', () => detachAudio(), { key: '⌃⇧S', disabled: locked || c.volume <= 0 }] : null,
+    c.kind === 'video' || c.kind === 'audio' ? ['语音转字幕', () => transcribeClip(c)] : null,
+    c.kind === 'video' || c.kind === 'audio' ? ['重新识别语音', () => transcribeClip(c, { fresh: true })] : null,
     [c.disabled ? '启用' : '停用', () => toggleDisabledMany(), { key: '⇧E', disabled: locked }],
     null,
     ['删除', () => deleteMany(), { key: '⌫', disabled: locked, danger: true }],
@@ -515,7 +519,7 @@ export async function addFileToTimeline(file, at = S.t, track = null) {
 
 const DRAG_TYPE = 'application/x-cutforge-file';
 scroller.addEventListener('dragover', (e) => {
-  if (e.dataTransfer.types.includes(DRAG_TYPE) || e.dataTransfer.types.includes('Files')) {
+  if (e.dataTransfer.types.includes(DRAG_TYPE) || e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('application/x-cutforge-library')) {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
     scroller.classList.add('dropping');
@@ -528,6 +532,7 @@ scroller.addEventListener('drop', async (e) => {
   const at = Math.max(0, snap(laneX(e.clientX) / pps, snapPoints(null)));
   const lane = e.target.closest('.tl-lane');
   const track = lane ? Number(lane.dataset.track) : null;
+  if (libraryDrop(e, at)) return;
   const internal = e.dataTransfer.getData(DRAG_TYPE);
   if (internal) return addFileToTimeline(internal, at, track);
   for (const f of e.dataTransfer.files) {

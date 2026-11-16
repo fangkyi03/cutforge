@@ -98,6 +98,27 @@ if (!window.filmHost) {          // 被单独打开时自己播放
   `-apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif`，或把字体文件放进 assets/ 用 `@font-face`。
 - 外部库放进 assets/ 本地引用；不要依赖 CDN（渲染时可能没有网络）。
 
+## 内置素材库
+
+```sh
+.cutforge/bin/cutforge library                 # 列出转场、标题、特效、贴纸、音效
+.cutforge/bin/cutforge library add titles/lower-third   # 拷进工程的 library/，再在 film.html 里引用
+```
+
+转场是盖在两个镜头切点上方的短页面（放在最上面一条轨道，中点对准切点）；标题和特效叠在画面上层；
+音效放在声音轨道。素材的文字可以直接改页面里的文字，或让人在预览里双击修改。
+
+## 配音、图片、音乐、字幕
+
+```sh
+.cutforge/bin/cutforge get voice "要说的话"          # 配音（默认用系统语音，免费），存到 assets/voice/，旁边有对齐好的 .vtt
+.cutforge/bin/cutforge get image "画面描述"          # 需要人在“环境 → 服务密钥”里配好 OpenAI 或 fal
+.cutforge/bin/cutforge get music "音乐描述" --seconds 30   # 需要 ElevenLabs 或 fal 的密钥
+.cutforge/bin/cutforge transcribe assets/xx.mp4      # 语音转字幕，生成同名 .vtt
+```
+
+没有密钥时 get image／music 会报错：这时用代码画图形，或请人提供素材，不要编造文件。
+
 ## 做完必须检查
 
 ```sh

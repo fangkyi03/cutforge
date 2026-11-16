@@ -78,6 +78,7 @@ export function createThumbs({ root, previewOrigin, stage }) {
       const { width, height } = stage();
       const b = await getBrowser();
       const page = await b.newPage({ width, height, scale: h / height });
+      await page.send('Emulation.setDefaultBackgroundColorOverride', { color: { r: 16, g: 18, b: 22, a: 1 } });
       try {
         await page.goto(`${previewOrigin}/${file.split('/').map(encodeURIComponent).join('/')}`);
         const ok = await page.evaluate(`(async () => {

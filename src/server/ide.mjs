@@ -18,6 +18,8 @@ import { renderFilm } from '../render/render.mjs';
 import { exportJianying, jianyingDraftRoots } from '../export/jianying.mjs';
 import { exportAs, KINDS } from '../export/more.mjs';
 import { saveVersion, listVersions, restoreVersion, deleteVersion, writeAtomic } from '../versions.mjs';
+import { libraryManifest, addToProject, LIB } from '../library.mjs';
+import * as gen from '../gen.mjs';
 import { announceServer, retireServer, serveRpc } from '../rpc.mjs';
 import { startPreview } from './preview.mjs';
 import { createThumbs } from './thumbs.mjs';
@@ -65,6 +67,7 @@ export async function startIde({ root, port = 0, open = true }) {
   } catch { /* 还没检查过 */ }
   let renderJob = null;
   let lookBusy = null;
+  let modelJob = null;
   const thumbs = createThumbs({
     root, previewOrigin: preview.origin,
     stage: () => {
@@ -311,6 +314,38 @@ export async function startIde({ root, port = 0, open = true }) {
         return sendJson(res, { file: startJianying(await json()) });
       case 'POST /api/export':
         return sendJson(res, { file: startExport(await json()) });
+      case 'GET /api/library':
+        return sendJson(res, libraryManifest());
+      case 'POST /api/library/add':
+        return sendJson(res, await addToProject(root, (await json()).id));
+      case 'GET /api/gen/status':
+        return sendJson(res, { keys: await gen.keyStatus(), services: gen.SERVICES, systemVoices: await gen.systemVoices(), voices: gen.VOICES, speech: await gen.speechStatus() });
+      case 'POST /api/gen/keys': {
+        const body = await json();
+        const cur = await gen.readKeys();
+        for (const [k, v] of Object.entries(body)) if (gen.SERVICES[k]) cur[k] = v;
+        await gen.writeKeys(cur);
+        return sendJson(res, await gen.keyStatus());
+      }
+      case 'POST /api/gen/voice':
+        return sendJson(res, await gen.makeVoice({ root, ...(await json()) }));
+      case 'POST /api/gen/image':
+        return sendJson(res, await gen.makeImage({ root, ...(await json()) }));
+      case 'POST /api/gen/music':
+        return sendJson(res, await gen.makeMusic({ root, ...(await json()) }));
+      case 'POST /api/gen/transcribe': {
+        const body = await json();
+        if (!inProject(body.file)) return send(res, 403, 'Forbidden');
+        return sendJson(res, await gen.transcribeFile(root, body.file, { lang: body.lang || 'zh', reuse: body.reuse !== false }));
+      }
+      case 'POST /api/gen/model':
+        if (!modelJob) {
+          const name = (await json().catch(() => ({}))).name || 'base';
+          modelJob = gen.downloadModel(({ got, total }) => broadcast({ type: 'model', got, total }), name)
+            .then(() => broadcast({ type: 'model', done: true }), (e) => broadcast({ type: 'model', error: String(e.message) }))
+            .finally(() => { modelJob = null; });
+        }
+        return sendJson(res, { ok: true });
       case 'GET /api/editor-state':
         try {
           return sendJson(res, JSON.parse(await fsp.readFile(path.join(root, '.cutforge', 'editor.json'), 'utf8')));
@@ -403,6 +438,10 @@ export async function startIde({ root, port = 0, open = true }) {
       if (url.pathname.startsWith('/shared/')) {
         const f = SHARED[url.pathname.slice(8)];
         return f ? sendFile(req, res, f, { headers: { 'cache-control': 'no-store' } }) : send(res, 404, 'Not found');
+      }
+      if (url.pathname.startsWith('/library/')) {
+        const f = resolveInside(LIB, url.pathname.slice('/library/'.length));
+        return f ? sendFile(req, res, f) : send(res, 404, 'Not found');
       }
       if (url.pathname.startsWith('/vendor/codemirror/')) {
         const f = resolveInside(CM, url.pathname.slice('/vendor/codemirror/'.length));

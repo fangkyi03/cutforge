@@ -1,0 +1,245 @@
+{
+  "categories": {
+    "transitions": "转场",
+    "titles": "标题",
+    "effects": "特效",
+    "stickers": "贴纸",
+    "sounds": "音效"
+  },
+  "items": [
+    {
+      "id": "transitions/flash",
+      "cat": "transitions",
+      "name": "白闪",
+      "desc": "一瞬间闪白，盖住切点",
+      "file": "transitions/flash.html",
+      "len": 0.6
+    },
+    {
+      "id": "transitions/dip-black",
+      "cat": "transitions",
+      "name": "黑场过渡",
+      "desc": "先暗下去再亮起来",
+      "file": "transitions/dip-black.html",
+      "len": 0.8
+    },
+    {
+      "id": "transitions/wipe",
+      "cat": "transitions",
+      "name": "色块擦除",
+      "desc": "一块颜色从左扫到右，盖住切点（颜色可在属性里改）",
+      "file": "transitions/wipe.html",
+      "len": 0.8
+    },
+    {
+      "id": "transitions/circle",
+      "cat": "transitions",
+      "name": "圆形收放",
+      "desc": "画面收成一个圆再放开",
+      "file": "transitions/circle.html",
+      "len": 1
+    },
+    {
+      "id": "transitions/stripes",
+      "cat": "transitions",
+      "name": "条纹切换",
+      "desc": "五条竖条交错盖住画面",
+      "file": "transitions/stripes.html",
+      "len": 0.9
+    },
+    {
+      "id": "transitions/glitch",
+      "cat": "transitions",
+      "name": "故障闪切",
+      "desc": "青、品红色条抖动几帧",
+      "file": "transitions/glitch.html",
+      "len": 0.5
+    },
+    {
+      "id": "titles/big-title",
+      "cat": "titles",
+      "name": "居中大标题",
+      "desc": "标题加副标题，上移淡入、结尾淡出",
+      "file": "titles/big-title.html",
+      "len": 3
+    },
+    {
+      "id": "titles/lower-third",
+      "cat": "titles",
+      "name": "人名条",
+      "desc": "左下角的姓名与头衔，从左往右展开",
+      "file": "titles/lower-third.html",
+      "len": 4
+    },
+    {
+      "id": "titles/subtitle-bar",
+      "cat": "titles",
+      "name": "字幕条",
+      "desc": "底部居中的半透明字幕",
+      "file": "titles/subtitle-bar.html",
+      "len": 3
+    },
+    {
+      "id": "titles/countdown",
+      "cat": "titles",
+      "name": "倒计时",
+      "desc": "3、2、1 倒数，带一圈进度",
+      "file": "titles/countdown.html",
+      "len": 3
+    },
+    {
+      "id": "titles/quote",
+      "cat": "titles",
+      "name": "引用金句",
+      "desc": "杂志风格的引用，文字逐字出现",
+      "file": "titles/quote.html",
+      "len": 5
+    },
+    {
+      "id": "effects/vignette",
+      "cat": "effects",
+      "name": "暗角",
+      "desc": "四周压暗，视线集中到中间",
+      "file": "effects/vignette.html",
+      "len": 5
+    },
+    {
+      "id": "effects/grain",
+      "cat": "effects",
+      "name": "胶片颗粒",
+      "desc": "细微的动态颗粒，增加胶片质感",
+      "file": "effects/grain.html",
+      "len": 5
+    },
+    {
+      "id": "effects/light-leak",
+      "cat": "effects",
+      "name": "漏光",
+      "desc": "暖色光斑缓慢飘过",
+      "file": "effects/light-leak.html",
+      "len": 6
+    },
+    {
+      "id": "effects/scanlines",
+      "cat": "effects",
+      "name": "扫描线",
+      "desc": "复古显示器的扫描线和光带",
+      "file": "effects/scanlines.html",
+      "len": 5
+    },
+    {
+      "id": "effects/confetti",
+      "cat": "effects",
+      "name": "彩带",
+      "desc": "从下方喷出彩色纸片",
+      "file": "effects/confetti.html",
+      "len": 4
+    },
+    {
+      "id": "stickers/arrow",
+      "cat": "stickers",
+      "name": "手绘箭头",
+      "desc": "",
+      "file": "stickers/arrow.svg",
+      "len": 3
+    },
+    {
+      "id": "stickers/circle",
+      "cat": "stickers",
+      "name": "圈注",
+      "desc": "",
+      "file": "stickers/circle.svg",
+      "len": 3
+    },
+    {
+      "id": "stickers/check",
+      "cat": "stickers",
+      "name": "对勾",
+      "desc": "",
+      "file": "stickers/check.svg",
+      "len": 3
+    },
+    {
+      "id": "stickers/cross",
+      "cat": "stickers",
+      "name": "叉号",
+      "desc": "",
+      "file": "stickers/cross.svg",
+      "len": 3
+    },
+    {
+      "id": "stickers/star",
+      "cat": "stickers",
+      "name": "星星",
+      "desc": "",
+      "file": "stickers/star.svg",
+      "len": 3
+    },
+    {
+      "id": "stickers/heart",
+      "cat": "stickers",
+      "name": "爱心",
+      "desc": "",
+      "file": "stickers/heart.svg",
+      "len": 3
+    },
+    {
+      "id": "stickers/speech",
+      "cat": "stickers",
+      "name": "对话气泡",
+      "desc": "",
+      "file": "stickers/speech.svg",
+      "len": 3
+    },
+    {
+      "id": "stickers/new",
+      "cat": "stickers",
+      "name": "NEW 标签",
+      "desc": "",
+      "file": "stickers/new.svg",
+      "len": 3
+    },
+    {
+      "id": "sounds/whoosh",
+      "cat": "sounds",
+      "name": "嗖（转场）",
+      "desc": "",
+      "file": "sounds/whoosh.wav"
+    },
+    {
+      "id": "sounds/pop",
+      "cat": "sounds",
+      "name": "啵（出现）",
+      "desc": "",
+      "file": "sounds/pop.wav"
+    },
+    {
+      "id": "sounds/click",
+      "cat": "sounds",
+      "name": "咔嗒（点击）",
+      "desc": "",
+      "file": "sounds/click.wav"
+    },
+    {
+      "id": "sounds/rise",
+      "cat": "sounds",
+      "name": "上升（强调）",
+      "desc": "",
+      "file": "sounds/rise.wav"
+    },
+    {
+      "id": "sounds/ding",
+      "cat": "sounds",
+      "name": "叮（提示）",
+      "desc": "",
+      "file": "sounds/ding.wav"
+    },
+    {
+      "id": "sounds/bass-hit",
+      "cat": "sounds",
+      "name": "低音重击",
+      "desc": "",
+      "file": "sounds/bass-hit.wav"
+    }
+  ]
+}

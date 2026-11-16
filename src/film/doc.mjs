@@ -606,6 +606,15 @@ export function setElementOverride(text, key, at, patch) {
   return applyEdits(text, [{ start: c.tagStart, end: c.tagEnd, text: serializeTag(c.tag, patchedAttrs(c, { elements })) }]);
 }
 
+// 在最上面加一条字幕轨（WebVTT，影片时间）
+export function addCaptionTrack(text, src, label = '') {
+  const doc = parseFilm(text);
+  const tag = serializeTag('track', [{ name: 'kind', value: 'captions' }, { name: 'src', value: src }, ...(label ? [{ name: 'label', value: label }] : [])]);
+  const block = `<section>\n  ${tag}\n</section>\n`;
+  const at = doc.tracks.length ? doc.tracks[0].start : doc.bodyClose >= 0 ? doc.bodyClose : text.length;
+  return applyEdits(text, [{ start: at, end: at, text: block }]);
+}
+
 export function kindOfFile(file) {
   const ext = (file.split('.').pop() || '').toLowerCase();
   if (['html', 'htm'].includes(ext)) return 'page';

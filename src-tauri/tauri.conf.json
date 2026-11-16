@@ -28,6 +28,7 @@
       "../styles/": "app/styles/",
       "../templates/": "app/templates/",
       "../examples/": "app/examples/",
+      "../library/": "app/library/",
       "../package.json": "app/package.json",
       "../node_modules/codemirror/lib/": "app/node_modules/codemirror/lib/",
       "../node_modules/codemirror/mode/": "app/node_modules/codemirror/mode/",
