@@ -451,7 +451,7 @@ function syncMedia(rc, srcT, gain, exact) {
   m.muted = RENDER || vol === 0;
   const target = clamp(srcT, 0, Math.max(0, (rc.srcDur ?? srcT) - 0.001));
   if (state.playing && !exact) {
-    m.playbackRate = clamp(c.speed, 0.1, 16);
+    m.playbackRate = clamp(c.speed * (state.rate || 1), 0.1, 16);
     if (m.paused) {
       m.currentTime = target;
       m.play().catch(() => {
@@ -531,8 +531,16 @@ function pause() {
 
 function tick(now) {
   if (!state.playing) return;
-  const t = t0 + (now - clock0) / 1000;
+  const t = t0 + ((now - clock0) / 1000) * (state.rate || 1);
   if (t >= state.duration) {
+    if (state.loop) {
+      for (const rc of state.clips) if (rc.media && !rc.media.paused) rc.media.pause();
+      t0 = 0;
+      clock0 = now;
+      state.t = 0;
+      requestAnimationFrame(tick);
+      return;
+    }
     state.t = state.duration;
     pause();
     return;
@@ -825,6 +833,13 @@ addEventListener('message', (e) => {
     state.pick = m.uid && m.at ? { uid: m.uid, at: m.at } : null;
     drawSelection();
   } else if (m.type === 'volume') state.volume = clamp(m.value, 0, 1);
+  else if (m.type === 'playback') {
+    if (m.rate) {
+      state.rate = clamp(m.rate, 0.25, 4);
+      if (state.playing) { t0 = state.t; clock0 = performance.now(); }
+    }
+    if (m.loop != null) state.loop = !!m.loop;
+  }
   else if (m.type === 'theme') document.body.dataset.theme = m.theme;
 });
 

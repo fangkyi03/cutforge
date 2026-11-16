@@ -356,7 +356,9 @@ rows.addEventListener('contextmenu', (e) => {
     [c.kind === 'page' ? '打开代码' : '查看文件', () => openFile(c.file)],
     null,
     ['在播放头处切开', () => splitAtPlayhead(), { key: 'S', disabled: locked }],
-    ['复制一份', () => duplicateSelected(), { key: '⌘D', disabled: locked }],
+    ['复制', () => copySelected(), { key: '⌘C' }],
+    ['粘贴到播放头', () => pasteAtPlayhead(), { key: '⌘V', disabled: !clipboard }],
+    ['复制一份接在后面', () => duplicateSelected(), { key: '⌘D', disabled: locked }],
     [c.disabled ? '启用' : '停用', () => toggleDisabled(), { key: '⇧E', disabled: locked }],
     null,
     ['删除', () => deleteSelected(), { key: '⌫', disabled: locked, danger: true }],
@@ -456,6 +458,36 @@ export function deleteSelected() {
 export function toggleDisabled() {
   const c = clipByUid(S.selected);
   if (editable(c)) editFilm((t) => updateClip(t, c.key, { disabled: !c.disabled }));
+}
+
+let clipboard = null;
+
+export function copySelected() {
+  const c = clipByUid(S.selected);
+  if (!c) return;
+  clipboard = { uid: c.uid, track: c.track, kind: c.kind, len: lengthOf(c) };
+  toast(`已复制 ${c.uid}`);
+}
+
+export function pasteAtPlayhead() {
+  if (!clipboard) return;
+  const src = clipByUid(clipboard.uid);
+  if (!src) return toast('复制的片段已经不在了');
+  const at = r3(S.t);
+  let uid = null;
+  editFilm((text) => {
+    let next = duplicateClip(text, src.key, { at });
+    let doc = parseFilm(next);
+    const list = doc.tracks[src.track].clips;
+    uid = list[list.findIndex((x) => x.uid === src.uid) + 1].uid;
+    if (overlapsOn(S.doc, src.track, null, at, clipboard.len) || S.doc.tracks[src.track].locked) {
+      next = addTrack(next, src.kind === 'audio' ? 'bottom' : 'top');
+      doc = parseFilm(next);
+      next = moveClip(next, doc.clips.find((x) => x.uid === uid).key, src.kind === 'audio' ? doc.tracks.length - 1 : 0, {});
+    }
+    return next;
+  });
+  if (uid) selectClip(uid);
 }
 
 // 副本接在原片段后面；那里被占了就放到新开的最上面一条轨道

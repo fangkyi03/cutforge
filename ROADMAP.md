@@ -33,6 +33,37 @@
 | 1.8 ✅ | 写文件改成“临时文件 + 改名”，崩溃不写坏 | — | 0.5 | 单元测试 |
 | 1.9 ✅ | 导出 4K、动态模糊、响度标准化（-14 LUFS） | OF | 1.5 | ffprobe／loudnorm 实测 |
 
+## 第 1.5 批：界面与交互对齐 OpenFilm Studio（插在第 2 批之前）
+
+对照 OpenFilm Studio 界面源码（`packages/openfilm/studio/ui/src`，321 个文件）逐模块列出。
+✅ 已有　◐ 有但简化　⬜ 没有
+
+| 模块 | OpenFilm 的做法 | CutForge 现状 | 人日 |
+| --- | --- | --- | --- |
+| 工程管理（Launcher、ProjectsView、ProjectTabs） | 启动页、工程库（封面、搜索、文件夹、回收站）、多工程标签页、示例画廊 | ⬜ 只有菜单里“新建／打开工程” | 4 |
+| 图层面板（LayersPanel、layers-tree） | 列出页面里的每个元素，可选中、锁定、隐藏、按层级展开 | ⬜ 只能在预览里双击选元素 | 3 |
+| 舞台操作（stage-gesture、stage-crop、stage-mask、StageTransformFrame） | 移动、缩放、旋转手柄，裁剪，蒙版，对齐吸附与测量线 | ◐ 只有移动和四角缩放；没有旋转手柄、裁剪、蒙版、吸附线 | 5 |
+| 预览（ViewerBar、ViewerZoom、PlaybackMenu、FilmFullscreenBar） | 缩放预览、播放倍速、循环、全屏控制条、音量表（AudioMeters） | ◐ 有全屏、音量、倍速（0.5–4×）、循环；没有预览缩放、电平表 | 1 |
+| 时间线编辑（timeline-edit、timeline-drag、timeline-clipboard） | 多选、框选、复制粘贴、波纹删除、范围选择、分离音频、轨道整理、轨道高度 | ◐ 单选、复制粘贴（⌘C／⌘V 到播放头）；没有多选、框选、波纹、范围、分离音频 | 5 |
+| 标记（TimelineMarkers、markers） | 时间线标记，可命名、跳转 | ⬜ | 1 |
+| 文字属性（TextInspector、font-menu、FontFamilyPicker、text-look） | 字体选择（含工程字体）、字重、字距、行高、对齐、描边、阴影 | ◐ 只有文字、颜色、字号 | 3 |
+| 片段外观（clip-look、clip-presets、grade、FilterLayerSection） | 滤镜、调色、混合模式、外观预设、复制粘贴属性（PasteAttrsDialog） | ◐ 只有不透明度、圆角 | 4 |
+| 片段运动（ClipMotionSection、mg-transform） | 进出场动画预设、关键帧运动 | ⬜ | 4 |
+| 转场（transitions、transition-pages） | 片段之间加转场，转场是页面 | ⬜ | 3 |
+| 字幕（CaptionInspector、CaptionPresets、CaptionWords、caption-edits） | 字幕样式预设、逐字编辑、按句切分、字幕在舞台上直接拖 | ◐ 只能显示默认样式 | 5 |
+| 模板（TemplatePicker、template-controls） | 模板库，模板参数面板 | ⬜ | 4 |
+| 素材池（MediaPool、media-folders、media-place） | 文件夹、多选、排序、替换片段素材（clip-replace） | ◐ 有网格、搜索；没有文件夹整理、替换 | 2 |
+| 素材库抽屉（LibraryDrawer、VoicesPane、AudioList、SkillsPane） | 音乐、音效、配音、技能的抽屉，试听、试用 | ⬜（第 2、3 批） | — |
+| 导出中心（ExportCenter、ExportTray、RangePicker、MomentPicker） | 导出队列、选范围导出、挑静帧时刻、导出历史 | ◐ 单个任务对话框，没有范围、队列 | 3 |
+| 操作历史（OperationHistory、project-history、auto-versions） | 可视化撤销历史，自动版本、带预览的版本列表 | ◐ 内存里的撤销、手动版本 | 3 |
+| 工作区（workspaces、WorkspaceEditor、workspace-dock） | 可拖动停靠的面板布局，保存多套布局 | ⬜ 布局固定 | 5 |
+| 设置（SettingsModal：智能体、模型、服务、快捷键、存储、诊断） | 完整设置页，快捷键可改（keymap） | ◐ 只有“环境”对话框 | 3 |
+| 智能体对话（chat-marks、studio-refs） | 消息里的文件／片段可点击跳转，`@` 引用 | ◐ 纯文本 | 2 |
+| 多语言（i18n：英、西、日、韩、中） | 五种语言 | ⬜ 只有中文 | 2 |
+| 新功能提示、检查更新（WhatsNew、UpdateButton） | 有 | ⬜ | 1 |
+
+合计约 70 人日。
+
 ## 第 2 批：素材库与生成服务（第 3–5 周）
 
 | # | 功能 | 来源 | 人日 | 验证 |

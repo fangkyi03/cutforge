@@ -356,3 +356,4 @@ kbd { font: 11px var(--mono); color: var(--faint); margin-left: auto; padding-le
 .versions { margin-top: 10px; }
 .version { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); }
 .form .row input { flex: 1; }
+#transport .rate { font: 12px var(--mono); padding: 4px 6px; min-width: 38px; justify-content: center; }

@@ -2,7 +2,7 @@
 import { updateClip, setStage, setElementOverride } from '/shared/doc.mjs';
 import { S, CF, $, $$, h, add, on, emit, api, toast, log, showTab, player, seek, setFilm, editFilm, undo, redo, selectClip, clipByUid, clearPick, timecode, fmtTime, modal, menu, enc, applyTheme } from './store.js';
 import { icon } from './icons.js';
-import { render as drawTimeline, splitAtPlayhead, deleteSelected, duplicateSelected, toggleDisabled } from './timeline.js';
+import { render as drawTimeline, splitAtPlayhead, deleteSelected, duplicateSelected, toggleDisabled, copySelected, pasteAtPlayhead } from './timeline.js';
 import { externalChange, isTextFile, openFile, save as saveEditor, hasDirty } from './editor.js';
 import { refresh as refreshMedia, drawStyles } from './media.js';
 import './inspector.js';
@@ -81,6 +81,24 @@ const volume = h('input', { type: 'range', min: '0', max: '100', value: localSto
   localStorage.setItem('cf.vol', volume.value);
   player.post('volume', { value: Number(volume.value) / 100 });
 } });
+// 播放倍速与循环（只影响预览）
+const playback = { rate: Number(localStorage.getItem('cf.rate')) || 1, loop: localStorage.getItem('cf.loop') === '1' };
+const rateBtn = h('button.ghost.rate', { title: '播放倍速与循环', onclick: (e) => {
+  const r = e.currentTarget.getBoundingClientRect();
+  menu(r.left, r.top - 8, [
+    h('div.menu-title', {}, '播放倍速（只影响预览）'),
+    ...[0.5, 1, 1.5, 2, 4].map((v) => [`${playback.rate === v ? '✓ ' : '　'}${v}×`, () => setPlayback({ rate: v })]),
+    null,
+    [`${playback.loop ? '✓ ' : '　'}循环播放`, () => setPlayback({ loop: !playback.loop }), { key: 'L' }],
+  ]).classList.add('up');
+} });
+function setPlayback(p) {
+  Object.assign(playback, p);
+  localStorage.setItem('cf.rate', String(playback.rate));
+  localStorage.setItem('cf.loop', playback.loop ? '1' : '0');
+  player.post('playback', playback);
+  rateBtn.textContent = `${playback.rate}×${playback.loop ? ' ↻' : ''}`;
+}
 const stageBtn = h('button.ghost', { title: '舞台尺寸', onclick: (e) => {
   const r = e.currentTarget.getBoundingClientRect();
   const item = (w, hh, name) => [`${name}　${w}×${hh}`, () => editFilm((t) => setStage(t, w, hh))];
@@ -89,6 +107,7 @@ const stageBtn = h('button.ghost', { title: '舞台尺寸', onclick: (e) => {
 add($('#transport'),
   h('div.tc', { title: '分:秒:帧（按 30 帧）' }, now, total),
   h('div.spacer'),
+  rateBtn,
   h('button.ghost.icon', { title: '回到开头（Home）', onclick: () => seek(0) }, icon('start', 16)),
   playBtn,
   h('span.gap'),
@@ -154,6 +173,8 @@ function handleKey(e) {
   const k = e.key;
   if (e.meta && k.toLowerCase() === 'z') return e.shift ? redo() : undo();
   if (e.meta && k.toLowerCase() === 'd') return duplicateSelected();
+  if (e.meta && k.toLowerCase() === 'c') return copySelected();
+  if (e.meta && k.toLowerCase() === 'v') return pasteAtPlayhead();
   if (e.meta) return false;
   if (e.code === 'Space') return player.post('toggle');
   if (e.shift && k.toLowerCase() === 'e') return toggleDisabled();
@@ -164,6 +185,7 @@ function handleKey(e) {
   if (k === 'Home') return seek(0);
   if (k === 'End') return seek(S.info.duration || 0);
   if (k === 'Escape') return S.pick ? clearPick() : selectClip(null);
+  if (k === 'l' || k === 'L') return setPlayback({ loop: !playback.loop });
   return false;
 }
 
@@ -436,6 +458,7 @@ async function boot() {
   });
   setFilm(text, { push: false, save: false });
   player.post('volume', { value: Number(volume.value) / 100 });
+  setPlayback({});
   refreshMedia();
   drawStyles();
   drawAgents();
