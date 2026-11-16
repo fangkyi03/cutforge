@@ -24,6 +24,7 @@ import * as skills from '../skills.mjs';
 import { LLM_PRESETS, llmStatus, writeLlm } from '../agents/builtin.mjs';
 import { usageSummary } from '../agents/usage.mjs';
 import { planZoom, zoomKeyframesCss } from '../autozoom.mjs';
+import * as analysis from '../analysis.mjs';
 import { findTool } from '../render/probe.mjs';
 import { announceServer, retireServer, serveRpc } from '../rpc.mjs';
 import { startPreview } from './preview.mjs';
@@ -369,6 +370,16 @@ export async function startIde({ root, port = 0, open = true }) {
         });
         await fsp.rm(src, { force: true });
         return sendJson(res, { file: path.relative(root, out).split(path.sep).join('/') });
+      }
+      case 'POST /api/analyze': {
+        const body = await json();
+        const abs = inProject(body.file);
+        if (!abs) return send(res, 403, 'Forbidden');
+        const opts = { from: Number(body.from) || 0, to: body.to == null ? null : Number(body.to) };
+        if (body.what === 'speech') return sendJson(res, { segments: await analysis.speechSegments(abs, opts) });
+        if (body.what === 'shots') return sendJson(res, { cuts: await analysis.shotCuts(abs, opts) });
+        if (body.what === 'faces') return sendJson(res, await analysis.faceTrack(abs, { ...opts, step: Number(body.step) || 0.5 }));
+        return send(res, 400, 'bad what');
       }
       case 'POST /api/autozoom': {
         const body = await json();

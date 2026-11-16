@@ -55,10 +55,20 @@ npm install                      # 只有一个依赖：代码编辑器 CodeMirr
 - **技能**：与 OpenFilm 的技能格式相同，可以装 OpenFilm 官方目录里的技能。
 - **内置智能体**：没装命令行智能体时，用 API 密钥直连 DeepSeek、Kimi、通义千问、OpenAI 等兼容 OpenAI 接口的模型。
 
+## 剪实拍素材
+
+片段右键：
+
+- **去掉停顿**：只保留说话的部分，后面的片段自动补上空隙（Silero VAD）。
+- **按镜头自动切开**：在每个镜头切点切开（TransNetV2）。
+- **跟随人脸取景**：横屏素材放进竖屏（或反过来）时，取景跟着人脸移动（YuNet）。
+
+三个模型都是 MIT 许可，随安装包分发，在本机运行，不上传素材。命令行：`./cutforge analyze speech|shots|faces <文件>`。第三方许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
 ## 导出
 
 - **MP4**：H.264，可选帧率、尺寸（含 4K）和 -14 LUFS 响度标准化。
-- **其它格式**：GIF、透明视频（WebM VP9／MOV ProRes 4444）、混音 WAV+MP3、分轨 WAV、字幕 SRT+VTT、静帧 PNG、幻灯片 PDF、FCPXML 时间线。命令行：`./cutforge export <格式>`。
+- **其它格式**：GIF、透明视频（WebM VP9／MOV ProRes 4444）、混音 WAV+MP3、分轨 WAV、字幕 SRT+VTT、静帧 PNG、幻灯片 PDF、FCPXML 和 OpenTimelineIO 时间线。命令行：`./cutforge export <格式>`。
 - **版本**：顶栏“版本”存命名版本、回到旧版本（回退前自动存档）。命令行：`./cutforge version 名字`。
 - **剪映草稿**：生成剪映专业版的草稿文件夹（素材一起拷进去），在剪映里接着剪。视频、图片、声音保持分轨，位置、缩放、旋转、不透明度、
   cover 裁剪、变速、音量、淡入淡出都带过去；页面先渲染成透明背景的 ProRes 4444 视频再放进去；字幕另存为 .srt。

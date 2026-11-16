@@ -108,6 +108,17 @@ if (!window.filmHost) {          // 被单独打开时自己播放
 转场是盖在两个镜头切点上方的短页面（放在最上面一条轨道，中点对准切点）；标题和特效叠在画面上层；
 音效放在声音轨道。素材的文字可以直接改页面里的文字，或让人在预览里双击修改。
 
+## 分析素材
+
+剪实拍素材前先分析，不要凭猜测下刀：
+
+```sh
+.cutforge/bin/cutforge analyze speech assets/talk.mp4   # 说话段落 [{start,end}]：去停顿时只保留这些
+.cutforge/bin/cutforge analyze shots assets/vlog.mp4    # 镜头切点 [秒]：按镜头切分、挑镜头
+.cutforge/bin/cutforge analyze faces assets/talk.mp4    # 每 0.5 秒的人脸位置（0–1）：竖屏构图跟着人走
+.cutforge/bin/cutforge transcribe assets/talk.mp4       # 说了什么（同名 .vtt），按句子剪
+```
+
 ## 技能
 
 人可能装了一些技能（某类片子的做法说明），任务书里会附上选中的那几份。查看和阅读：

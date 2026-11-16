@@ -338,7 +338,7 @@ function exportDialog() {
     h('p.hint', {}, '生成剪映专业版的草稿文件夹，在剪映里接着剪。视频、图片、声音保持分轨，位置、缩放、变速、音量、淡入淡出都带过去；页面先渲染成透明背景的视频再放进去；字幕变成剪映自己的字幕（也另存一份 .srt）；淡入淡出变成不透明度关键帧。片段的 CSS 外观（圆角、滤镜、动画）剪映里没有对应。'),
     h('label.check', {}, install, S.jianyingRoot ? '直接放进剪映的草稿目录（重开剪映就能看到）' : '没找到剪映的草稿目录：导出到 exports/jianying/，再手动拷进去'),
     h('p.hint.warn', {}, '按剪映 5.9 的草稿格式生成。剪映 6 以后的版本会加密草稿，能否打开取决于你的剪映版本。'));
-  const OTHER = { gif: 'GIF 动图', webm: '透明视频 WebM（VP9）', mov: '透明视频 MOV（ProRes 4444）', audio: '声音：混音 WAV + MP3', stems: '声音：每条轨一个 WAV', subtitles: '字幕 SRT + VTT', still: `静帧 PNG（播放头 ${fmtTime(S.t)}）`, slides: '幻灯片 PDF（每个镜头一页）', fcpxml: 'Final Cut／DaVinci 时间线（FCPXML）' };
+  const OTHER = { gif: 'GIF 动图', webm: '透明视频 WebM（VP9）', mov: '透明视频 MOV（ProRes 4444）', audio: '声音：混音 WAV + MP3', stems: '声音：每条轨一个 WAV', subtitles: '字幕 SRT + VTT', still: `静帧 PNG（播放头 ${fmtTime(S.t)}）`, slides: '幻灯片 PDF（每个镜头一页）', fcpxml: 'Final Cut／DaVinci 时间线（FCPXML）', otio: 'OpenTimelineIO 时间线（Premiere／达芬奇／Avid）' };
   const other = h('select', {}, Object.entries(OTHER).map(([k, v]) => h('option', { value: k }, v)));
   other.value = localStorage.getItem('cf.otherKind') || 'gif';
   const otherBox = h('div', {}, h('label', {}, h('span', {}, '格式'), other),

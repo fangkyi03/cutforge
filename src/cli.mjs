@@ -15,6 +15,7 @@ const HELP = `CutForge：让编码智能体做视频、让人随手改的本地 
   cutforge export <格式>        导出 gif webm mov audio stems subtitles still slides fcpxml（--t 秒 给 still 用）
   cutforge version [名字]       存一个版本；cutforge versions 列出版本
   cutforge get voice|image|music "文字"   生成配音（--voice、--provider system|openai|elevenlabs）、图片、音乐，存到 assets/
+  cutforge analyze speech|shots|faces <文件>   说话段落、镜头切点、人脸位置（JSON；--from --to 秒）
   cutforge transcribe <文件>    语音转字幕，生成同名 .vtt（第一次会下载约 150MB 的识别模型）
   cutforge skills               列出已安装的技能（与 OpenFilm 的技能格式相同）
   cutforge skill <名字>         打印一个技能；cutforge skill add <GitHub 链接|文件夹>；skill remove <名字>；skill catalog
@@ -125,6 +126,16 @@ export async function main(argv) {
     const r = await fn({ root: project, text, prompt: text, provider: flags.provider || undefined, voice: flags.voice || undefined, seconds: flags.seconds ? Number(flags.seconds) : undefined });
     return console.log(`已生成 ${r.file}${r.duration ? `（${r.duration.toFixed(2)} 秒，旁边有同名 .vtt 字幕${r.aligned ? '，已按语音对齐' : '，按字数估算'}）` : ''}`);
   }
+  if (cmd === 'analyze') {
+    const a = await import('./analysis.mjs');
+    const what = pos[1];
+    const file = pos[2] && path.resolve(project, pos[2]);
+    if (!file || !['speech', 'shots', 'faces'].includes(what)) throw new Error('用法：cutforge analyze speech|shots|faces <文件> [--from 秒] [--to 秒]');
+    const opts = { from: Number(flags.from) || 0, to: flags.to ? Number(flags.to) : null };
+    const r = what === 'speech' ? { segments: await a.speechSegments(file, opts) } : what === 'shots' ? { cuts: await a.shotCuts(file, opts) } : await a.faceTrack(file, { ...opts, step: Number(flags.step) || 0.5 });
+    return console.log(JSON.stringify(r, null, 2));
+  }
+
   if (cmd === 'transcribe') {
     const gen = await import('./gen.mjs');
     if (!pos[1]) throw new Error('用法：cutforge transcribe <文件>');

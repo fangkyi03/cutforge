@@ -8,10 +8,12 @@ import { parseVtt, toSrt } from '../film/vtt.mjs';
 import { findTool, probe, run } from '../render/probe.mjs';
 import { renderFilm, audioPlan } from '../render/render.mjs';
 import { renderPage, placement } from './jianying.mjs';
+import { writeOtio } from './otio.mjs';
 
 export const KINDS = {
   gif: 'GIF 动图', webm: '透明视频 WebM', mov: '透明视频 MOV（ProRes 4444）', audio: '声音（混音 WAV + MP3）', stems: '声音分轨（每条轨一个 WAV）',
   subtitles: '字幕（SRT + VTT）', still: '静帧 PNG（播放头所在帧）', slides: '幻灯片 PDF（每个镜头一页）', fcpxml: 'Final Cut／DaVinci 时间线（FCPXML）',
+  otio: 'OpenTimelineIO 时间线（.otio，Premiere／达芬奇／Avid）',
 };
 
 const stamp = () => {
@@ -260,6 +262,39 @@ export async function exportAs({ root, film = 'film.html', kind, t = 0, fps, wid
       const pdf = path.join(dir, `${base}-slides.pdf`);
       await imagesToPdf(outs, pdf, doc.width, doc.height);
       return { files: [rel(pdf)], notes: [`每页取每个镜头中间的一帧，共 ${outs.length} 页`] };
+    }
+    if (kind === 'otio') {
+      const sub = path.join(dir, `${base}-otio`);
+      const media = path.join(sub, 'media');
+      await fsp.mkdir(media, { recursive: true });
+      const fpsO = fps || 30;
+      const clips = [];
+      const pages = doc.clips.filter((c) => c.kind === 'page' && !c.disabled).length;
+      let n = 0;
+      for (const c of doc.clips) {
+        const tr = doc.tracks[c.track];
+        if (c.disabled || tr.hidden || tr.caption) continue;
+        const len = info.clips[c.key]?.length || 0;
+        if (!len) continue;
+        let file = path.resolve(filmDir, c.file);
+        let cin = c.in;
+        let speed = c.kind === 'video' || c.kind === 'audio' ? c.speed : 1;
+        if (c.kind === 'page') {
+          onProgress({ text: `渲染页面 ${c.uid}（${++n}/${pages}）` });
+          file = path.join(media, `${c.uid}.mov`);
+          await renderPage({ root, doc, filmDir, c, len, out: file, fps: fpsO, signal });
+          cin = 0;
+          speed = 1;
+        } else {
+          const dest = path.join(media, path.basename(file));
+          await fsp.copyFile(file, dest).catch(() => {});
+          file = dest;
+        }
+        clips.push({ name: c.uid, file, kind: c.kind, at: c.at, in: cin, len, speed, track: c.track, mediaDuration: c.kind === 'image' ? 3600 : undefined });
+      }
+      const out = path.join(sub, `${path.basename(root)}.otio`);
+      await writeOtio({ name: path.basename(root), clips, tracks: doc.tracks.length, duration: info.duration, fps: fpsO, out });
+      return { files: [rel(out)], notes: ['素材已拷进同目录的 media/；位置、缩放、淡入淡出不在 OTIO 里，需要在剪辑软件里调'] };
     }
     if (kind === 'fcpxml') {
       const sub = path.join(dir, `${base}-fcpxml`);
