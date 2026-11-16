@@ -20,6 +20,9 @@ import { exportAs, KINDS } from '../export/more.mjs';
 import { saveVersion, listVersions, restoreVersion, deleteVersion, writeAtomic } from '../versions.mjs';
 import { libraryManifest, addToProject, LIB } from '../library.mjs';
 import * as gen from '../gen.mjs';
+import * as skills from '../skills.mjs';
+import { LLM_PRESETS, llmStatus, writeLlm } from '../agents/builtin.mjs';
+import { usageSummary } from '../agents/usage.mjs';
 import { announceServer, retireServer, serveRpc } from '../rpc.mjs';
 import { startPreview } from './preview.mjs';
 import { createThumbs } from './thumbs.mjs';
@@ -206,13 +209,16 @@ export async function startIde({ root, port = 0, open = true }) {
       }
     },
   });
-  const startAgent = async ({ prompt, agents, style }) => {
+  const startAgent = async ({ prompt, agents, style, skills: wanted = [] }) => {
     if (runner.busy) throw new Error('智能体正在工作，先等它完成或点停止');
     const styles = await loadStyles();
     const chosen = styles.find((s) => s.id === style) || null;
-    pushChat({ kind: 'user', text: prompt, style: chosen?.name || null, time: Date.now() });
+    const picked = [];
+    for (const n of wanted) picked.push(await skills.readSkillText(n).catch(() => null));
+    const useSkills = picked.filter(Boolean);
+    pushChat({ kind: 'user', text: prompt, style: [chosen?.name, ...useSkills.map((s) => s.title)].filter(Boolean).join(' · ') || null, time: Date.now() });
     broadcast({ type: 'agent', state: 'start' });
-    runner.run({ request: prompt, agentIds: agents, style: chosen })
+    runner.run({ request: prompt, agentIds: agents, style: chosen, skills: useSkills })
       .then((r) => {
         if (r.stopped) pushChat({ kind: 'note', text: '已停止。工程里保留了它做到一半的内容。', time: Date.now() });
         else if (!r.ok) pushChat({ kind: 'note', text: '没有智能体跑完这个任务。看上面的输出：常见原因是没登录、额度用完或网络不通。', time: Date.now() });
@@ -346,6 +352,37 @@ export async function startIde({ root, port = 0, open = true }) {
             .finally(() => { modelJob = null; });
         }
         return sendJson(res, { ok: true });
+      case 'GET /api/usage':
+        return sendJson(res, await usageSummary());
+      case 'GET /api/llm':
+        return sendJson(res, { presets: LLM_PRESETS, status: await llmStatus() });
+      case 'POST /api/llm':
+        return sendJson(res, await writeLlm(await json()));
+      case 'GET /api/skills':
+        return sendJson(res, (await skills.listSkills()).map(({ dir, cover, ...s }) => ({ ...s, hasCover: !!cover })));
+      case 'GET /api/skills/catalog':
+        return sendJson(res, await skills.skillCatalog());
+      case 'POST /api/skills': {
+        const body = await json();
+        if (body.op === 'add') return sendJson(res, (await skills.addSkill(body.link)).map((s) => s.full));
+        if (body.op === 'remove') return sendJson(res, await skills.removeSkill(body.name));
+        return send(res, 400, 'bad op');
+      }
+      case 'GET /api/board':
+        try {
+          return sendJson(res, JSON.parse(await fsp.readFile(path.join(root, '.cutforge', 'board.json'), 'utf8')));
+        } catch {
+          return sendJson(res, { cards: [], mode: 'free' });
+        }
+      case 'PUT /api/board': {
+        const body = await json();
+        const cards = (Array.isArray(body.cards) ? body.cards : []).slice(0, 500).map((c) => ({
+          id: String(c.id).slice(0, 20), kind: c.kind === 'media' ? 'media' : 'note', x: Math.max(0, Number(c.x) || 0), y: Math.max(0, Number(c.y) || 0),
+          text: String(c.text || '').slice(0, 4000), file: c.kind === 'media' ? String(c.file || '') : undefined, dur: c.dur == null ? null : Math.max(0.5, Number(c.dur) || 3),
+        }));
+        await writeAtomic(path.join(root, '.cutforge', 'board.json'), JSON.stringify({ mode: body.mode === 'story' ? 'story' : 'free', cards }));
+        return sendJson(res, { ok: true });
+      }
       case 'GET /api/editor-state':
         try {
           return sendJson(res, JSON.parse(await fsp.readFile(path.join(root, '.cutforge', 'editor.json'), 'utf8')));

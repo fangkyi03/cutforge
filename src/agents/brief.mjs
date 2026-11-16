@@ -53,7 +53,7 @@ export async function loadStyles() {
   return out;
 }
 
-export async function buildPrompt({ root, request, style, previous }) {
+export async function buildPrompt({ root, request, style, skills = [], previous }) {
   const assets = await listAssets(root);
   const lines = [
     '你在一个 CutForge 影片工程里工作，当前目录就是工程目录。',
@@ -66,6 +66,9 @@ export async function buildPrompt({ root, request, style, previous }) {
     lines.push('', '## 接手说明', `上一个智能体（${previous}）中途失败了。工程目录里是它已经完成的部分：先检查现状（运行 look），在它的基础上继续完成任务，不要推倒重来。`);
   }
   if (style) lines.push('', `## 风格：${style.name}`, style.guide);
+  for (const sk of skills) {
+    lines.push('', `## 技能：${sk.full}`, `（这份技能是为 OpenFilm 写的也没关系：它说的 film.html 和页面格式与这里一致；它提到 \`openfilm look\` 等命令时，用 \`.cutforge/bin/cutforge look\` 等对应命令；完整内容随时可以用 \`.cutforge/bin/cutforge skill ${sk.full}\` 再读。）`, '', sk.text.replace(/^---[\s\S]*?---\s*/, '').trim());
+  }
   lines.push('', '## 现有素材（assets/）');
   if (!assets.length) lines.push('（没有素材。需要图形就用代码画；不要引用不存在的文件。）');
   for (const a of assets) {

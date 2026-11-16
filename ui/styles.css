@@ -383,3 +383,48 @@ kbd { font: 11px var(--mono); color: var(--faint); margin-left: auto; padding-le
 .gen-block button.primary { align-self: flex-end; }
 .gen-field { display: grid; grid-template-columns: 40px 1fr; align-items: center; gap: 6px; font-size: 12px; color: var(--dim); }
 .gen-field select, .gen-field input { min-width: 0; width: 100%; }
+.sk-head { margin: 14px 0 4px; }
+.skills { margin-top: 6px; }
+.skills .row input { flex: 1; min-width: 0; font-size: 12px; }
+.skill { display: flex; align-items: flex-start; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 9px; margin-bottom: 7px; cursor: pointer; }
+.skill.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.skill input { margin-top: 3px; }
+.skill > div { flex: 1; min-width: 0; }
+.skill code { display: block; font: 11px var(--mono); color: var(--faint); }
+.skill p { margin: 3px 0 0; font-size: 12px; color: var(--dim); line-height: 1.5; }
+#board { flex: 1; min-width: 0; }
+.board-hide { display: none !important; }
+.board-bar { display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 12px; border-bottom: 1px solid var(--line); flex: none; }
+.board-bar .dim { font-size: 12px; }
+.seg-mini { display: inline-flex; background: var(--raise); border-radius: 8px; padding: 2px; gap: 2px; }
+.seg-mini button { border: 0; background: transparent; padding: 3px 10px; font-size: 12px; color: var(--dim); border-radius: 6px; }
+.seg-mini button.on { background: var(--card); color: var(--text); box-shadow: 0 1px 2px #0002; font-weight: 600; }
+#top .seg-mini { margin-left: 4px; }
+.board-space { flex: 1; overflow: auto; position: relative; background: radial-gradient(circle, var(--line2) 1px, transparent 1.2px) 0 0 / 20px 20px, var(--card2); }
+.board-inner { position: relative; min-width: 100%; min-height: 100%; }
+.board-inner.story { display: flex; flex-wrap: wrap; gap: 16px; padding: 20px; align-content: flex-start; }
+.bcard { position: absolute; width: 220px; background: var(--card); border: 1px solid var(--line2); border-radius: 12px; box-shadow: 0 4px 16px #0000001a; cursor: grab; display: flex; flex-direction: column; overflow: hidden; }
+.board-inner.story .bcard { position: relative; }
+.bcard.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent), 0 6px 20px #0002; }
+.bcard.k-note { background: #fff7d1; border-color: #f1df8a; color: #3d3418; }
+:root[data-theme="dark"] .bcard.k-note { background: #3a3420; border-color: #5c5126; color: #f1e6b8; }
+.bcard-head { display: flex; align-items: center; gap: 6px; padding: 6px 6px 4px 10px; font-size: 12px; }
+.bcard-head span { color: var(--faint); }
+.bcard.k-note .bcard-head span { color: inherit; opacity: .6; }
+.bcard-head button { padding: 2px; }
+.bcard-pic { aspect-ratio: 16 / 9; background: #14161b; display: grid; place-items: center; color: var(--audio); }
+.bcard-pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.bcard-file { font: 11px var(--mono); color: var(--faint); padding: 4px 10px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-text { min-height: 44px; padding: 6px 10px 8px; font-size: 13px; line-height: 1.55; outline: none; cursor: text; white-space: pre-wrap; user-select: text; }
+.note-text:empty::before { content: attr(data-ph); color: var(--faint); }
+.bcard-dur { display: flex; align-items: center; gap: 4px; padding: 0 10px 8px; font-size: 12px; color: var(--faint); }
+.bcard-dur input { width: 60px; padding: 2px 6px; font-size: 12px; }
+.board-empty { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--faint); text-align: center; pointer-events: none; }
+.board-empty b { color: var(--text); }
+.board-empty p { max-width: 360px; font-size: 13px; line-height: 1.7; margin: 0; }
+.bcard-pic { aspect-ratio: auto; height: 124px; }
+.usage { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.usage th, .usage td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+.usage th { color: var(--dim); font-weight: 600; }
+.custom select { min-width: 150px; }
+.reply a.ref, .msg a.ref { color: var(--accent); font-family: var(--mono); font-size: .92em; text-decoration: none; border-bottom: 1px dashed currentColor; }

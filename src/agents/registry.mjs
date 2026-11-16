@@ -4,13 +4,19 @@ import fs from 'node:fs';
 import fsp from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { run } from '../render/probe.mjs';
 
 const HOME = os.homedir();
 export const CONFIG_FILE = path.join(process.env.CUTFORGE_HOME || path.join(HOME, '.cutforge'), 'config.json');
 
 // tested：是否在开发机上按当前版本核对过参数
+const CLI = fileURLToPath(new URL('../../bin/cutforge.mjs', import.meta.url));
 const BUILTIN = [
+  {
+    id: 'builtin', name: '内置智能体', bin: process.execPath, install: '在“环境 → 内置智能体”里填 API 接口和密钥', tested: false, needsLlm: true,
+    command: ({ root }) => ({ args: [CLI, 'agent', '--project', root], stdin: true }),
+  },
   {
     id: 'codex', name: 'Codex', bin: 'codex', install: 'npm i -g @openai/codex', tested: true, login: ['login', 'status'],
     command: ({ root }) => ({ args: ['exec', '--skip-git-repo-check', '--sandbox', 'workspace-write', '--color', 'never', '-C', root, '-'], stdin: true }),
@@ -103,10 +109,17 @@ let cache = null;
 export async function detectAgents({ fresh = false } = {}) {
   if (cache && !fresh && Date.now() - cache.at < 30000) return cache.list;
   const list = await Promise.all((await allAgents()).map(async (a) => {
-    const file = findBin(a.bin);
+    const file = a.needsLlm ? (fs.existsSync(path.join(path.dirname(CONFIG_FILE), 'llm.json')) ? a.bin : null) : findBin(a.bin);
     const out = { id: a.id, name: a.name, install: a.install, tested: a.tested, custom: !!a.custom, template: a.template || null, installed: !!file, path: file, version: null, loggedIn: null };
     if (!file) return out;
     const env = { ...process.env, PATH: [path.dirname(process.execPath), path.dirname(file), process.env.PATH].join(path.delimiter) };
+    if (a.needsLlm) {
+      try {
+        const c = JSON.parse(fs.readFileSync(path.join(path.dirname(CONFIG_FILE), 'llm.json'), 'utf8'));
+        out.version = `${c.model} · ${new URL(c.base).host}`;
+      } catch { /* 没配 */ }
+      return out;
+    }
     if (!a.custom) {
       const v = await run(file, ['--version'], { timeout: 6000, env });
       out.version = (v.stdout || v.stderr).trim().split('\n')[0].slice(0, 60) || null;
@@ -121,6 +134,6 @@ export async function detectAgents({ fresh = false } = {}) {
 export async function resolveAgent(id) {
   const a = (await allAgents()).find((x) => x.id === id);
   if (!a) return null;
-  const file = findBin(a.bin);
+  const file = a.needsLlm ? a.bin : findBin(a.bin);
   return file ? { ...a, path: file } : null;
 }

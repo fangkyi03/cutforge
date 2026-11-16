@@ -2,6 +2,8 @@
 // 失败时可以自动换下一个从当前进度接着做。
 import { S, $, h, add, on, api, toast, enc, showTab, menu, fmtDur, emit } from './store.js';
 import { icon } from './icons.js';
+import { chosenSkills } from './media.js';
+import { openFile } from './editor.js';
 
 const pane = $('#chat');
 const feed = h('div.feed');
@@ -70,7 +72,8 @@ function drawComposer() {
   agentBtn.innerHTML = '';
   add(agentBtn, h(`i.dot${names.length ? '' : '.off'}`), names.length ? (names.length > 1 && failover() ? `${names[0]} +${names.length - 1}` : names[0]) : '没有智能体');
   const style = S.styles.find((s) => s.id === localStorage.getItem('cf.style'));
-  styleBtn.textContent = style ? style.name : '不用风格';
+  const sk = chosenSkills();
+  styleBtn.textContent = `${style ? style.name : '不用风格'}${sk.length ? ` · ${sk.length} 个技能` : ''}`;
   sendBtn.innerHTML = '';
   sendBtn.append(icon(S.agentBusy ? 'stop' : 'send', 15));
   sendBtn.title = S.agentBusy ? '停止' : '开始做（Enter）';
@@ -92,7 +95,7 @@ function runCard(m) {
     add(head, h(`i.mark.${m.status}`), h('span', {}, `${m.agent.name} · ${what}`), h('span.caret', {}, icon('chevron', 11)));
   }
   const card = h(`div.run.${m.status}`, { dataset: { run: m.runId } }, head, pre,
-    !running && m.reply ? h('div.reply', {}, m.reply) : null);
+    !running && m.reply ? h('div.reply', {}, linkify(m.reply)) : null);
   return card;
 }
 
@@ -121,7 +124,7 @@ async function send() {
   ensureOrder();
   if (!order.length) return toast('没有可用的智能体：装一个，或在“环境”里添加自定义的', 'bad');
   try {
-    await api('/api/agent/run', { method: 'POST', json: { prompt, agents: failover() ? order : order.slice(0, 1), style: localStorage.getItem('cf.style') || null } });
+    await api('/api/agent/run', { method: 'POST', json: { prompt, agents: failover() ? order : order.slice(0, 1), style: localStorage.getItem('cf.style') || null, skills: chosenSkills() } });
     input.value = '';
     autosize();
   } catch (e) {
@@ -136,6 +139,60 @@ const autosize = () => {
 };
 
 input.addEventListener('input', autosize);
+
+// ---- @ 引用：输入 @ 弹出工程里的文件，选中后插入路径
+let files = [];
+async function loadFiles() {
+  const tree = await api('/api/tree').catch(() => []);
+  const out = [];
+  const walk = (nodes) => { for (const n of nodes) (n.dir ? walk(n.children) : out.push(n.path)); };
+  walk(tree);
+  files = out.filter((f) => !/\.(DS_Store)$/.test(f));
+}
+function atQuery() {
+  const before = input.value.slice(0, input.selectionStart);
+  const m = /(^|\s)@([^\s@]*)$/.exec(before);
+  return m ? { q: m[2], start: before.length - m[2].length - 1 } : null;
+}
+let atMenu = null;
+async function showAt() {
+  atMenu?.remove();
+  atMenu = null;
+  const at = atQuery();
+  if (!at) return;
+  if (!files.length) await loadFiles();
+  const q = at.q.toLowerCase();
+  const list = files.filter((f) => f.toLowerCase().includes(q)).slice(0, 8);
+  if (!list.length) return;
+  const r = input.getBoundingClientRect();
+  atMenu = menu(r.left, r.top - 6, [h('div.menu-title', {}, '引用工程里的文件'), ...list.map((f) => [f, () => {
+    const end = input.selectionStart;
+    input.value = `${input.value.slice(0, at.start)}${f} ${input.value.slice(end)}`;
+    input.focus();
+    const pos = at.start + f.length + 1;
+    input.setSelectionRange(pos, pos);
+    atMenu = null;
+  }])]);
+  atMenu.classList.add('up');
+}
+input.addEventListener('input', showAt);
+input.addEventListener('focus', loadFiles);
+
+// 回复里提到的工程文件变成可点击的链接
+function linkify(text) {
+  const frag = document.createDocumentFragment();
+  const re = /([\w.\-\u4e00-\u9fff]+\/)*[\w.\-\u4e00-\u9fff]+\.(html|mp4|mov|webm|png|jpe?g|svg|wav|mp3|vtt|css|js|json|md)/g;
+  let last = 0;
+  for (const m of text.matchAll(re)) {
+    const path = m[0];
+    const known = files.includes(path) || /^(film\.html|scenes\/|assets\/|library\/)/.test(path);
+    if (!known) continue;
+    frag.append(text.slice(last, m.index), h('a.ref', { href: '#', title: '在编辑器里打开', onclick: (e) => { e.preventDefault(); openFile(path); } }, path));
+    last = m.index + path.length;
+  }
+  frag.append(text.slice(last));
+  return frag;
+}
 input.addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
     e.preventDefault();
@@ -188,4 +245,10 @@ export function onChatEvent(ev) {
 }
 
 on('agentBusy', drawComposer);
+on('compose', (text) => {
+  input.value = text;
+  autosize();
+  input.focus();
+  toast('已把画布写成任务放进对话框，确认后发送');
+});
 on('style', drawComposer);

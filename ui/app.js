@@ -11,6 +11,7 @@ import { drawAgents, drawChat, onChatEvent } from './agent.js';
 import { drawProblems, onLookEvent, runLook } from './problems.js';
 import { forget } from './thumbs.js';
 import { loadLibrary } from './library.js';
+import { loadBoard, toggleBoard } from './board.js';
 
 // ---------------------------------------------------------------- 标签、分隔条、主题
 
@@ -217,6 +218,7 @@ function handleKey(e) {
   if (meta && k === 'd') return duplicateSelected();
   if (meta && k === 'a') return selectAll();
   if (meta && k === 'b') return splitAtPlayhead();
+  if (meta && k === 'e') return toggleBoard();
   if (meta && (k === '=' || k === '+')) return zoomBy(1.4);
   if (meta && k === '-') return zoomBy(1 / 1.4);
   if (meta && k === '0') return zoomFit();
@@ -419,6 +421,35 @@ async function envDialog() {
   drawAgents();
   const custom = (data.config.agents || []).map((a) => ({ ...a }));
   const gs = await api('/api/gen/status').catch(() => null);
+  const llm = await api('/api/llm').catch(() => null);
+  const usage = await api('/api/usage').catch(() => []);
+  const llmBox = h('div.custom');
+  if (llm) {
+    const st = llm.status || {};
+    const preset = h('select', {}, llm.presets.map((p) => h('option', { value: p.id }, p.name)));
+    preset.value = st.preset || 'deepseek';
+    const base = h('input.grow', { placeholder: '接口地址，例如 https://api.deepseek.com', value: st.base || '' });
+    const model = h('input', { placeholder: '模型名', value: st.model || '', style: { width: '170px' } });
+    const key = h('input.grow', { type: 'password', autocomplete: 'off', placeholder: st.hasKey ? '已保存（填新的会覆盖）' : 'API 密钥' });
+    const fill = () => {
+      const p = llm.presets.find((x) => x.id === preset.value);
+      if (p && p.base) { base.value = p.base; model.value = p.model; }
+    };
+    preset.onchange = fill;
+    if (!st.base) fill();
+    add(llmBox,
+      h('div.row', {}, preset, model),
+      h('div.row', {}, base),
+      h('div.row', {}, key, h('button', { onclick: async () => {
+        try {
+          await api('/api/llm', { method: 'POST', json: { preset: preset.value, base: base.value, model: model.value, key: key.value } });
+          toast('已保存。智能体列表里会出现“内置智能体”', 'good');
+          envDialog();
+        } catch (e) {
+          toast(e.message, 'bad');
+        }
+      } }, '保存')));
+  }
   const keyRows = h('div.custom');
   if (gs) {
     for (const [id, s] of Object.entries(gs.services)) {
@@ -462,6 +493,12 @@ async function envDialog() {
         toast(e.message, 'bad');
       }
     } }, '保存密钥')),
+    h('h4', {}, '内置智能体（API 密钥直连模型）'),
+    h('p.hint', {}, '没装命令行智能体也能出片：直接用兼容 OpenAI 接口的大模型（DeepSeek、Kimi、通义千问、OpenAI 或中转站）。模型要支持工具调用。密钥只存在这台电脑的 ~/.cutforge/llm.json。'),
+    llmBox,
+    usage.length ? h('h4', {}, '各家智能体对比') : null,
+    usage.length ? h('table.usage', {}, h('tr', {}, h('th', {}, '智能体'), h('th', {}, '次数'), h('th', {}, '成功率'), h('th', {}, '平均用时'), h('th', {}, '平均用量')),
+      usage.map((u) => h('tr', {}, h('td', {}, u.agent), h('td', {}, String(u.runs)), h('td', {}, `${Math.round(u.okRate * 100)}%`), h('td', {}, `${Math.round(u.avgSeconds)} 秒`), h('td', {}, u.avgTokens != null ? `${u.avgTokens.toLocaleString()} tokens` : '—')))) : null,
     h('h4', {}, '自定义智能体'),
     h('p.hint', {}, '任何能在命令行里不问话跑完一个任务的智能体都能接。命令里写 {prompt} 的位置会换成任务书；不写则从标准输入传入。它会在工程目录里运行。'),
     rows,
@@ -560,6 +597,8 @@ async function boot() {
   $('#envBtn').onclick = envDialog;
   $('#versionsBtn').onclick = versionsDialog;
   $('#keysBtn').onclick = shortcutsDialog;
+  for (const b of $$('#modeSeg button')) b.onclick = () => toggleBoard(b.dataset.mode === 'board');
+  on('layout', () => { const board = !$('#board').classList.contains('hidden'); for (const b of $$('#modeSeg button')) b.classList.toggle('on', (b.dataset.mode === 'board') === board); });
   if (!state.hasCodeMirror) log('没有安装 CodeMirror（在 CutForge 目录运行 npm install），代码编辑器暂用纯文本框');
 
   const theme = document.documentElement.dataset.theme;
@@ -576,6 +615,7 @@ async function boot() {
   Object.assign(S, await api('/api/editor-state').catch(() => ({ markers: [], range: null })));
   refreshMedia();
   loadLibrary();
+  loadBoard();
   drawStyles();
   drawAgents();
   drawChat();

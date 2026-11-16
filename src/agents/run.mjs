@@ -5,6 +5,7 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { buildPrompt } from './brief.mjs';
 import { resolveAgent } from './registry.mjs';
+import { recordRun, tokensFrom } from './usage.mjs';
 
 const ANSI = /\u001b\[[0-9;?]*[ -/]*[@-~]|\u001b\][^\u0007]*\u0007/g;
 const MAX_LOG = 300000;
@@ -34,7 +35,7 @@ export class AgentRunner {
   }
 
   // 依次尝试 agentIds；返回 { ok, agent }
-  async run({ request, agentIds, style }) {
+  async run({ request, agentIds, style, skills = [] }) {
     this.stopped = false;
     let previous = null;
     try {
@@ -44,7 +45,7 @@ export class AgentRunner {
           this.emit({ type: 'note', text: `没有找到 ${agentIds[i]} 的命令行，跳过。` });
           continue;
         }
-        const prompt = await buildPrompt({ root: this.root, request, style, previous });
+        const prompt = await buildPrompt({ root: this.root, request, style, skills, previous });
         const result = await this.#once(agent, prompt);
         if (result.code === 0) return { ok: true, agent: agent.name };
         if (this.stopped) return { ok: false, stopped: true };
@@ -79,6 +80,7 @@ export class AgentRunner {
       let size = 0;
       let buf = '';
       let said = '';
+      let fullLog = '';
       let timer = null;
       const flush = () => {
         timer = null;
@@ -90,6 +92,7 @@ export class AgentRunner {
         if (size > MAX_LOG) return;
         const text = String(d).replace(ANSI, '').replace(/\r(?!\n)/g, '\n');
         size += text.length;
+        if (fullLog.length < 200000) fullLog += text;
         buf += text;
         if (!timer) timer = setTimeout(flush, 120);
       };
@@ -107,7 +110,9 @@ export class AgentRunner {
         done = true;
         clearTimeout(timer);
         flush();
-        this.emit({ type: 'run-end', runId, code, seconds: (Date.now() - started) / 1000, stopped: this.stopped, error, reply: said.trim().slice(-6000) });
+        const seconds = (Date.now() - started) / 1000;
+        if (!this.stopped) recordRun({ agent: agent.name, ok: code === 0, seconds, tokens: tokensFrom(fullLog) }).catch(() => {});
+        this.emit({ type: 'run-end', runId, code, seconds, stopped: this.stopped, error, reply: said.trim().slice(-6000) });
         resolve({ code });
       };
       proc.on('error', (e) => finish(-1, String(e.message)));

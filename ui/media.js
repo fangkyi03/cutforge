@@ -267,5 +267,70 @@ export function drawStyles() {
   h('div.swatch', {}, (s?.colors || ['#d9dce3', '#c2c7d1', '#a9b0be', '#8f97a8']).map((c) => h('i', { style: { background: c } }))),
   h('b', {}, s ? s.name : '不用风格'),
   h('p', {}, s ? s.desc : '画面、字体、配色、节奏都按你写的话来定'));
-  add(box, h('p.hint', {}, '选一种风格，下一次让智能体出片时会带上它的做法说明。'), card(null), S.styles.map(card));
+  add(box, h('h4.sk-head', {}, '风格'), h('p.hint', {}, '选一种风格，下一次让智能体出片时会带上它的做法说明。'), card(null), S.styles.map(card), skillsBox);
+  drawSkills();
+}
+
+// ---------------------------------------------------------------- 技能（与 OpenFilm 的技能格式相同）
+
+const skillsBox = h('div.skills');
+export const chosenSkills = () => JSON.parse(localStorage.getItem('cf.skills') || '[]');
+
+async function drawSkills() {
+  const list = await api('/api/skills').catch(() => []);
+  const chosen = new Set(chosenSkills().filter((n) => list.some((s) => s.full === n)));
+  localStorage.setItem('cf.skills', JSON.stringify([...chosen]));
+  const link = h('input', { placeholder: 'GitHub 链接或本地文件夹路径' });
+  const catBox = h('div');
+  skillsBox.innerHTML = '';
+  add(skillsBox,
+    h('h4.sk-head', {}, '技能'),
+    h('p.hint', {}, '技能是一类片子的做法说明（SKILL.md），格式与 OpenFilm 的技能相同。勾上的技能会写进下一次出片的任务书。'),
+    list.length ? null : h('p.hint', {}, '还没有安装技能。'),
+    list.map((s) => h(`label.skill${chosen.has(s.full) ? '.on' : ''}`, { title: s.source ? `来自 ${s.source}` : '' },
+      h('input', { type: 'checkbox', checked: chosen.has(s.full), onchange: (e) => {
+        if (e.target.checked) chosen.add(s.full);
+        else chosen.delete(s.full);
+        localStorage.setItem('cf.skills', JSON.stringify([...chosen]));
+        emit('style');
+        drawSkills();
+      } }),
+      h('div', {}, h('b', {}, s.title), h('code', {}, s.full), s.description ? h('p', {}, s.description) : null),
+      h('button.ghost.icon', { title: '删除这个技能', onclick: async (e) => {
+        e.preventDefault();
+        if (!confirm(`删除技能 ${s.full}？`)) return;
+        await api('/api/skills', { method: 'POST', json: { op: 'remove', name: s.full } }).catch((er) => toast(er.message, 'bad'));
+        drawSkills();
+      } }, icon('trash', 12)))),
+    h('div.row', {}, link, h('button', { onclick: async (e) => {
+      const b = e.currentTarget;
+      b.disabled = true;
+      try {
+        const r = await api('/api/skills', { method: 'POST', json: { op: 'add', link: link.value } });
+        toast(`已安装 ${r.join('、')}`, 'good');
+        drawSkills();
+      } catch (er) {
+        toast(er.message, 'bad');
+      } finally {
+        b.disabled = false;
+      }
+    } }, '安装')),
+    h('button.ghost', { onclick: async () => {
+      catBox.innerHTML = '';
+      catBox.append(h('p.hint', {}, '正在读取 OpenFilm 的技能目录…'));
+      try {
+        const cat = await api('/api/skills/catalog');
+        catBox.innerHTML = '';
+        for (const c of cat) {
+          catBox.append(h('div.row', {}, h('code', { style: { flex: 1 } }, c.full), c.installed ? h('span.dim', {}, '已安装') : h('button', { onclick: async () => {
+            await api('/api/skills', { method: 'POST', json: { op: 'add', link: c.link } }).then(() => toast(`已安装 ${c.full}`, 'good'), (er) => toast(er.message, 'bad'));
+            drawSkills();
+          } }, '安装')));
+        }
+      } catch (er) {
+        catBox.innerHTML = '';
+        catBox.append(h('p.hint.warn', {}, `读不到技能目录：${er.message}`));
+      }
+    } }, '浏览 OpenFilm 技能目录'),
+    catBox);
 }

@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defaultProjectDir, ensureProject } from './project.mjs';
 import { serverFor, call } from './rpc.mjs';
 
@@ -15,6 +16,8 @@ const HELP = `CutForge：让编码智能体做视频、让人随手改的本地 
   cutforge version [名字]       存一个版本；cutforge versions 列出版本
   cutforge get voice|image|music "文字"   生成配音（--voice、--provider system|openai|elevenlabs）、图片、音乐，存到 assets/
   cutforge transcribe <文件>    语音转字幕，生成同名 .vtt（第一次会下载约 150MB 的识别模型）
+  cutforge skills               列出已安装的技能（与 OpenFilm 的技能格式相同）
+  cutforge skill <名字>         打印一个技能；cutforge skill add <GitHub 链接|文件夹>；skill remove <名字>；skill catalog
   cutforge library [add <id>]   列出内置素材库，或把一项拷进工程（转场、标题、特效、贴纸、音效）
   cutforge jianying            导出剪映草稿到 exports/jianying/
   cutforge probe <文件>        看素材的时长、分辨率、有没有声音
@@ -131,6 +134,34 @@ export async function main(argv) {
     }
     const r = await gen.transcribeFile(project, pos[1], { lang: flags.lang || 'zh', reuse: false });
     return console.log(`已生成 ${r.file}`);
+  }
+
+  if (cmd === 'agent') {
+    const { runBuiltin } = await import('./agents/builtin.mjs');
+    const chunks = [];
+    for await (const c of process.stdin) chunks.push(c);
+    const prompt = pos.slice(1).join(' ') || Buffer.concat(chunks).toString('utf8');
+    const r = await runBuiltin({ root: project, prompt, cli: fileURLToPath(new URL('../bin/cutforge.mjs', import.meta.url)) });
+    console.log(r.reply);
+    return;
+  }
+
+  if (cmd === 'skills' || cmd === 'skill') {
+    const sk = await import('./skills.mjs');
+    const sub = pos[1];
+    if (cmd === 'skills' || !sub) {
+      const list = await sk.listSkills();
+      if (!list.length) console.log('还没有安装技能。cutforge skill catalog 看可装的，cutforge skill add <链接> 安装');
+      for (const s of list) console.log(`${s.full.padEnd(28)} ${s.title}${s.description ? `：${s.description}` : ''}`);
+      return;
+    }
+    if (sub === 'add') return console.log(`已安装：${(await sk.addSkill(pos[2])).map((s) => s.full).join('、')}`);
+    if (sub === 'remove') return sk.removeSkill(pos[2]).then(() => console.log('已删除'));
+    if (sub === 'catalog') {
+      for (const c of await sk.skillCatalog()) console.log(`${c.installed ? '●' : '○'} ${c.full.padEnd(28)} ${c.version}  安装：cutforge skill add ${c.link}`);
+      return;
+    }
+    return console.log((await sk.readSkillText(sub)).text);
   }
 
   if (cmd === 'library') {
