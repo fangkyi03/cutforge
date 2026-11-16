@@ -357,3 +357,10 @@ kbd { font: 11px var(--mono); color: var(--faint); margin-left: auto; padding-le
 .version { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--line); }
 .form .row input { flex: 1; }
 #transport .rate { font: 12px var(--mono); padding: 4px 6px; min-width: 38px; justify-content: center; }
+.tl-range { position: absolute; top: 0; height: 24px; background: color-mix(in srgb, var(--accent) 18%, transparent); border-left: 2px solid var(--accent); border-right: 2px solid var(--accent); pointer-events: none; }
+.tl-marker { position: absolute; top: 2px; width: 10px; height: 13px; margin-left: -5px; background: #f2b94f; clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%); cursor: pointer; z-index: 2; }
+.tl-marquee { position: absolute; z-index: 8; border: 1px solid var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); pointer-events: none; }
+.keys { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 28px; }
+.key-row { display: flex; gap: 12px; padding: 3px 0; font-size: 13px; }
+.key-row kbd { margin: 0; padding: 1px 7px; min-width: 96px; color: var(--text); background: var(--card2); border: 1px solid var(--line); border-radius: 5px; font-size: 12px; }
+.key-row span { color: var(--dim); }

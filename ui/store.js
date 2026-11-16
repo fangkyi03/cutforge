@@ -40,6 +40,9 @@ export const S = {
   agents: [], styles: [], chat: [], agentBusy: false, rendering: null,
   snap: localStorage.getItem('cf.snap') !== '0',
   pick: null, // 预览里选中的页面元素
+  sel: new Set(), // 时间线上选中的片段（多选）；S.selected 是其中“当前”的那个
+  markers: [], // [{ t, name }]
+  range: null, // { in, out }：I／O 设的入出点
 };
 
 const listeners = {};
@@ -110,6 +113,7 @@ export function setFilm(text, { push = true, save = true } = {}) {
   S.filmText = text;
   S.doc = parseFilm(text);
   if (S.selected && !clipByUid(S.selected)) S.selected = null;
+  for (const u of [...S.sel]) if (!clipByUid(u)) S.sel.delete(u);
   player.post('film', { text });
   player.post('select', { key: clipByUid(S.selected)?.key ?? null });
   if (save) saveFilm();
@@ -137,12 +141,40 @@ export function clearPick() {
   emit('pick');
 }
 
-export function selectClip(uid) {
+// toggle：⌘／⇧ 点击时加入或移出多选
+export function selectClip(uid, { toggle = false } = {}) {
   if (S.pick && S.pick.uid !== uid) clearPick();
-  if (S.selected === uid) return;
-  S.selected = uid;
-  player.post('select', { key: clipByUid(uid)?.key ?? null });
+  if (toggle && uid) {
+    if (S.sel.has(uid)) {
+      S.sel.delete(uid);
+      if (S.selected === uid) S.selected = [...S.sel].at(-1) ?? null;
+    } else {
+      S.sel.add(uid);
+      S.selected = uid;
+    }
+  } else {
+    if (S.selected === uid && S.sel.size === (uid ? 1 : 0)) return;
+    S.sel = new Set(uid ? [uid] : []);
+    S.selected = uid;
+  }
+  player.post('select', { key: clipByUid(S.selected)?.key ?? null });
   emit('select');
+}
+
+export function setSelection(uids) {
+  S.sel = new Set(uids.filter(Boolean));
+  S.selected = uids.at(-1) ?? null;
+  if (S.pick && S.pick.uid !== S.selected) clearPick();
+  player.post('select', { key: clipByUid(S.selected)?.key ?? null });
+  emit('select');
+}
+
+// 标记与入出点：存在工程的 .cutforge/editor.json，不进 film.html
+let editorTimer = null;
+export function saveEditorState() {
+  clearTimeout(editorTimer);
+  editorTimer = setTimeout(() => api('/api/editor-state', { method: 'PUT', json: { markers: S.markers, range: S.range } }).catch(() => {}), 200);
+  emit('markers');
 }
 
 // 时间码 分:秒:帧（按 30 帧）

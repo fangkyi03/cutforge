@@ -1,8 +1,9 @@
 // 主程序：把各面板接起来——播放器消息、服务端事件、快捷键、导出与环境。
 import { updateClip, setStage, setElementOverride } from '/shared/doc.mjs';
-import { S, CF, $, $$, h, add, on, emit, api, toast, log, showTab, player, seek, setFilm, editFilm, undo, redo, selectClip, clipByUid, clearPick, timecode, fmtTime, modal, menu, enc, applyTheme } from './store.js';
+import { S, CF, $, $$, h, add, on, emit, api, toast, log, showTab, player, seek, setFilm, editFilm, undo, redo, selectClip, clipByUid, clearPick, saveEditorState, lengthOf, timecode, fmtTime, modal, menu, enc, applyTheme } from './store.js';
 import { icon } from './icons.js';
-import { render as drawTimeline, splitAtPlayhead, deleteSelected, duplicateSelected, toggleDisabled, copySelected, pasteAtPlayhead } from './timeline.js';
+import { render as drawTimeline, splitAtPlayhead, duplicateSelected, zoomBy, zoomFit } from './timeline.js';
+import { deleteMany, moveMany, toggleDisabledMany, trimToPlayhead, detachAudio, copyMany, pasteMany, copyAttrs, pasteAttrs, selectAll, selectNeighbor, cutPoints, selectedClips } from './edit-ops.js';
 import { externalChange, isTextFile, openFile, save as saveEditor, hasDirty } from './editor.js';
 import { refresh as refreshMedia, drawStyles } from './media.js';
 import './inspector.js';
@@ -169,35 +170,114 @@ on('film', drawTransport);
 
 // ---------------------------------------------------------------- 快捷键
 
+const mac = /Mac/.test(navigator.platform);
+// 快捷键：与 OpenFilm 的默认键位一致（⌘ 在 Windows 上是 Ctrl）
+const FRAME = 1 / 30;
+function addMarker() {
+  const t = Math.round(S.t * 1000) / 1000;
+  if (S.markers.some((m) => Math.abs(m.t - t) < 0.01)) return;
+  S.markers.push({ t, name: '' });
+  S.markers.sort((a, b) => a.t - b.t);
+  saveEditorState();
+}
+function jumpMarker(dir) {
+  const list = dir > 0 ? S.markers.filter((m) => m.t > S.t + 0.001) : S.markers.filter((m) => m.t < S.t - 0.001).reverse();
+  if (list[0]) seek(list[0].t);
+}
+function jumpCut(dir) {
+  const pts = cutPoints();
+  const p = dir > 0 ? pts.find((x) => x > S.t + 0.001) : [...pts].reverse().find((x) => x < S.t - 0.001);
+  if (p != null) seek(p);
+}
+function setRange(side) {
+  const t = Math.round(S.t * 1000) / 1000;
+  const r = { ...(S.range || { in: 0, out: S.info.duration || t }) };
+  r[side] = t;
+  S.range = r.out > r.in ? r : side === 'in' ? { in: t, out: S.info.duration || t + 1 } : { in: 0, out: t };
+  saveEditorState();
+}
+function rangeToClips() {
+  const list = selectedClips();
+  if (!list.length) return;
+  S.range = { in: Math.min(...list.map((c) => c.at)), out: Math.max(...list.map((c) => c.at + lengthOf(c))) };
+  saveEditorState();
+}
+let shuttle = 0;
 function handleKey(e) {
-  const k = e.key;
-  if (e.meta && k.toLowerCase() === 'z') return e.shift ? redo() : undo();
-  if (e.meta && k.toLowerCase() === 'd') return duplicateSelected();
-  if (e.meta && k.toLowerCase() === 'c') return copySelected();
-  if (e.meta && k.toLowerCase() === 'v') return pasteAtPlayhead();
-  if (e.meta) return false;
+  const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+  const { meta, shift, alt, ctrl } = e;
+  // 基本
+  if (meta && k === 'z') return shift ? redo() : undo();
+  if (meta && shift && k === 'c') return copyAttrs();
+  if (meta && shift && k === 'v') return pasteAttrs();
+  if (meta && k === 'x') return copyMany({ cut: true });
+  if (meta && k === 'c') return copyMany();
+  if (meta && k === 'v') return pasteMany();
+  if (meta && k === 'd') return duplicateSelected();
+  if (meta && k === 'a') return selectAll();
+  if (meta && k === 'b') return splitAtPlayhead();
+  if (meta && (k === '=' || k === '+')) return zoomBy(1.4);
+  if (meta && k === '-') return zoomBy(1 / 1.4);
+  if (meta && k === '0') return zoomFit();
+  if (ctrl && shift && k === 's') return detachAudio();
+  if (meta) return false;
+  if (k === 'Delete' || k === 'Backspace') return deleteMany({ ripple: shift });
+  // 播放
   if (e.code === 'Space') return player.post('toggle');
-  if (e.shift && k.toLowerCase() === 'e') return toggleDisabled();
-  if (k === 's' || k === 'S') return splitAtPlayhead();
-  if (k === 'Delete' || k === 'Backspace') return deleteSelected();
-  if (k === 'ArrowLeft') return seek(S.t - (e.shift ? 1 : 1 / 30));
-  if (k === 'ArrowRight') return seek(S.t + (e.shift ? 1 : 1 / 30));
+  if (k === 'k') { shuttle = 0; return player.post('pause'); }
+  if (k === 'l' && shift) return setPlayback({ loop: !playback.loop });
+  if (k === 'l') { shuttle = Math.min(3, shuttle + 1); setPlayback({ rate: [1, 1, 2, 4][shuttle] }); return player.post('play'); }
+  if (k === 'j') { shuttle = 0; player.post('pause'); return seek(S.t - 1); }
+  if (alt && k === 'ArrowLeft') return moveMany(-FRAME);
+  if (alt && k === 'ArrowRight') return moveMany(FRAME);
+  if (k === 'ArrowLeft') return seek(S.t - (shift ? 1 : FRAME));
+  if (k === 'ArrowRight') return seek(S.t + (shift ? 1 : FRAME));
+  if (k === 'ArrowUp') return jumpCut(-1);
+  if (k === 'ArrowDown') return jumpCut(1);
   if (k === 'Home') return seek(0);
   if (k === 'End') return seek(S.info.duration || 0);
+  // 入出点、标记
+  if (k === 'i' && shift) return S.range && seek(S.range.in);
+  if (k === 'o' && shift) return S.range && seek(S.range.out);
+  if (k === 'i') return setRange('in');
+  if (k === 'o') return setRange('out');
+  if (k === 'x' && shift) return rangeToClips();
+  if (k === 'x') { S.range = null; return saveEditorState(); }
+  if (k === 'm' && shift) return jumpMarker(1);
+  if (k === 'm' && alt) return jumpMarker(-1);
+  if (k === 'm') return addMarker();
+  // 时间线
+  if (k === 'e' && shift) return toggleDisabledMany();
+  if (k === 'q') return trimToPlayhead('start');
+  if (k === 'w') return trimToPlayhead('end');
+  if (k === '[') return selectNeighbor(-1);
+  if (k === ']') return selectNeighbor(1);
+  if (k === 'n') return document.querySelector('#tlRight .toggle')?.click();
+  if (k === 'z' && shift) return zoomFit();
   if (k === 'Escape') return S.pick ? clearPick() : selectClip(null);
-  if (k === 'l' || k === 'L') return setPlayback({ loop: !playback.loop });
+  if (k === '?') return shortcutsDialog();
   return false;
+}
+
+const SHORTCUTS = [
+  ['播放', [['空格', '播放／暂停'], ['J / K / L', '后退 1 秒／停止／播放（连按 L 加速）'], ['⇧L', '循环播放'], ['← →', '前后一帧（加 ⇧ 一秒）'], ['↑ ↓', '上一个／下一个剪辑点'], ['Home / End', '开头／结尾']]],
+  ['范围与标记', [['I / O', '设入点／出点'], ['⇧I / ⇧O', '跳到入点／出点'], ['X', '清除入出点'], ['⇧X', '入出点设为选中片段'], ['M', '加标记'], ['⇧M / ⌥M', '下一个／上一个标记']]],
+  ['时间线', [['⌘B', '在播放头处切开'], ['Q / W', '把开头／结尾裁到播放头'], ['⌥← ⌥→', '选中片段微移一帧'], ['[ ]', '选上一个／下一个片段'], ['⇧E', '停用／启用'], ['⌃⇧S', '分离音频'], ['N', '吸附开关'], ['⌘+ ⌘- ⌘0 ⇧Z', '放大／缩小／适应']]],
+  ['编辑', [['⌘Z / ⇧⌘Z', '撤销／重做'], ['⌘X ⌘C ⌘V', '剪切／复制／粘贴到播放头'], ['⌘D', '复制一份接在后面'], ['⇧⌘C / ⇧⌘V', '复制／粘贴属性'], ['⌘A', '全选'], ['⌫', '删除'], ['⇧⌫', '波纹删除'], ['⌘ 或 ⇧ 点击', '多选'], ['空白处拖动', '框选'], ['⌘S', '保存代码']]],
+];
+function shortcutsDialog() {
+  modal('快捷键', h('div.keys', {}, SHORTCUTS.map(([title, list]) => h('div', {}, h('h4', {}, title), list.map(([k, d]) => h('div.key-row', {}, h('kbd', {}, mac ? k : k.replace(/⌘/g, 'Ctrl+').replace(/⌥/g, 'Alt+').replace(/⇧/g, 'Shift+').replace(/⌃/g, 'Ctrl+')), h('span', {}, d)))))), { wide: true });
 }
 
 addEventListener('keydown', (e) => {
   const t = e.target;
   const typing = t instanceof HTMLInputElement || t instanceof HTMLTextAreaElement || t.isContentEditable || t.closest?.('.CodeMirror');
-  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 's') {
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === 's') {
     e.preventDefault();
     return saveEditor();
   }
   if (typing) return;
-  if (handleKey({ key: e.key, code: e.code, meta: e.metaKey || e.ctrlKey, shift: e.shiftKey }) !== false) e.preventDefault();
+  if (handleKey({ key: e.key, code: e.code, meta: e.metaKey || (e.ctrlKey && !mac), ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey }) !== false) e.preventDefault();
 });
 addEventListener('beforeunload', (e) => {
   if (hasDirty()) e.preventDefault();
@@ -261,6 +341,8 @@ function exportDialog() {
     h('p.hint', {}, '导出的文件在工程的 exports/ 里。透明视频没有声音；FCPXML 会把素材一起拷出来，页面先渲染成透明视频。'));
   const loud = h('input', { type: 'checkbox', checked: localStorage.getItem('cf.loud') === '1', onchange: () => localStorage.setItem('cf.loud', loud.checked ? '1' : '0') });
   mp4Box.append(h('label.check', {}, loud, '响度标准化到 -14 LUFS（各大视频平台的标准）'));
+  const onlyRange = h('input', { type: 'checkbox', checked: !!S.range, disabled: !S.range });
+  mp4Box.append(h('label.check', {}, onlyRange, S.range ? `只导出入出点之间（${fmtTime(S.range.in)} → ${fmtTime(S.range.out)}）` : '只导出入出点之间（先在时间线上按 I／O 设入出点）'));
   if (3840 / S.doc.width !== 2) scale.append(h('option', { value: String(3840 / S.doc.width) }, `4K ${3840}×${Math.round((3840 * S.doc.height) / S.doc.width)}`));
   const seg = h('div.seg');
   const draw = () => {
@@ -280,7 +362,7 @@ function exportDialog() {
         else if (kind === 'other') {
           localStorage.setItem('cf.otherKind', other.value);
           await api('/api/export', { method: 'POST', json: { kind: other.value, t: S.t } });
-        } else await api('/api/render', { method: 'POST', json: { fps: Number(fps.value), scale: Number(scale.value), loudness: loud.checked ? -14 : null } });
+        } else await api('/api/render', { method: 'POST', json: { fps: Number(fps.value), scale: Number(scale.value), loudness: loud.checked ? -14 : null, range: onlyRange.checked && S.range ? [S.range.in, S.range.out] : null } });
       } catch (e) {
         toast(e.message, 'bad');
       }
@@ -446,6 +528,7 @@ async function boot() {
   $('#exportBtn').onclick = exportDialog;
   $('#envBtn').onclick = envDialog;
   $('#versionsBtn').onclick = versionsDialog;
+  $('#keysBtn').onclick = shortcutsDialog;
   if (!state.hasCodeMirror) log('没有安装 CodeMirror（在 CutForge 目录运行 npm install），代码编辑器暂用纯文本框');
 
   const theme = document.documentElement.dataset.theme;
@@ -459,6 +542,7 @@ async function boot() {
   setFilm(text, { push: false, save: false });
   player.post('volume', { value: Number(volume.value) / 100 });
   setPlayback({});
+  Object.assign(S, await api('/api/editor-state').catch(() => ({ markers: [], range: null })));
   refreshMedia();
   drawStyles();
   drawAgents();

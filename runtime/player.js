@@ -789,7 +789,7 @@ if (!RENDER) {
   });
   addEventListener('keydown', (e) => {
     if (e.target instanceof HTMLInputElement) return;
-    post('key', { key: e.key, code: e.code, meta: e.metaKey || e.ctrlKey, shift: e.shiftKey });
+    post('key', { key: e.key, code: e.code, meta: e.metaKey || (e.ctrlKey && !/Mac/.test(navigator.platform)), ctrl: e.ctrlKey, alt: e.altKey, shift: e.shiftKey });
     if (e.code === 'Space') e.preventDefault();
   });
 }

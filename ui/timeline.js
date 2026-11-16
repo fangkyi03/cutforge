@@ -3,7 +3,8 @@
 import {
   parseFilm, updateClip, moveClip, removeClip, insertClip, splitClip, duplicateClip, addTrack, removeTrack, setTrackFlag, kindOfFile, r3,
 } from '/shared/doc.mjs';
-import { S, $, h, add, on, api, clamp, editFilm, lengthOf, localDuration, selectClip, clipByUid, seek, toast, undo, redo, fmtTime, enc, menu } from './store.js';
+import { S, $, h, add, on, api, clamp, editFilm, lengthOf, localDuration, selectClip, setSelection, clipByUid, seek, toast, undo, redo, fmtTime, enc, menu, saveEditorState } from './store.js';
+import { deleteMany, moveMany, toggleDisabledMany, detachAudio, copyMany, pasteMany, hasClipboard, copyAttrs, pasteAttrs } from './edit-ops.js';
 import { icon } from './icons.js';
 import { openFile } from './editor.js';
 import { frameUrl, waveUrl, fileUrl } from './thumbs.js';
@@ -58,7 +59,7 @@ add($('#tlLeft'),
   tool('undo', '撤销（⌘Z）', undo),
   tool('redo', '重做（⇧⌘Z）', redo),
   h('span.sep'),
-  tool('cut', '在播放头处切开（S）', () => splitAtPlayhead()),
+  tool('cut', '在播放头处切开（⌘B）', () => splitAtPlayhead()),
   tool('copy', '复制一份（⌘D）', () => duplicateSelected()),
   tool('trash', '删除选中的片段（Delete）', () => deleteSelected()),
   h('span.sep'),
@@ -151,6 +152,9 @@ export function render() {
     for (let k = 1; k < 4; k++) ruler.append(h('div.tl-tick.minor', { style: { left: `${HEAD + (t + (step * k) / 4) * pps}px` } }));
   }
 
+  if (S.range) ruler.append(h('div.tl-range', { title: `入点 ${fmtTime(S.range.in)} → 出点 ${fmtTime(S.range.out)}（X 清除）`, style: { left: `${HEAD + S.range.in * pps}px`, width: `${(S.range.out - S.range.in) * pps}px` } }));
+  S.markers.forEach((m, i) => ruler.append(h('div.tl-marker', { title: `${m.name || '标记'} · ${fmtTime(m.t)}\n点击跳转，右键改名或删除`, dataset: { i: String(i) }, style: { left: `${HEAD + m.t * pps}px` } })));
+
   rows.innerHTML = '';
   const badges = trackBadges(doc);
   doc.tracks.forEach((tr, i) => {
@@ -176,7 +180,7 @@ export function render() {
       const len = lengthOf(c);
       const w = Math.max(6, len * pps);
       const meta = S.info.clips[c.key];
-      const el = h(`div.clip.k-${c.kind}${c.uid === S.selected ? '.sel' : ''}${c.disabled ? '.off' : ''}${meta?.failed ? '.bad' : ''}`, {
+      const el = h(`div.clip.k-${c.kind}${S.sel.has(c.uid) ? '.sel' : ''}${c.disabled ? '.off' : ''}${meta?.failed ? '.bad' : ''}`, {
         dataset: { uid: c.uid },
         title: `${c.uid} · ${c.file}\n${fmtTime(c.at)} → ${fmtTime(c.at + len)}${isMedia(c) && c.speed !== 1 ? ` · ${c.speed}×` : ''}${meta?.failed ? '\n这个文件没有加载成功，看“问题”' : ''}`,
         style: { left: `${c.at * pps}px`, width: `${w}px` },
@@ -258,6 +262,72 @@ function dragSeek(e) {
   addEventListener('pointerup', up);
 }
 
+// 多选时拖动：整组水平移动（不换轨）
+function dragGroup(e, c) {
+  e.preventDefault();
+  const x0 = e.clientX;
+  const els = [...rows.querySelectorAll('.clip.sel')];
+  const pts = snapPoints(null).filter((p) => !S.doc.clips.some((x) => S.sel.has(x.uid) && (Math.abs(x.at - p) < 1e-6 || Math.abs(x.at + lengthOf(x) - p) < 1e-6)));
+  let dt = 0;
+  let moved = false;
+  const onMove = (ev) => {
+    if (!moved && Math.abs(ev.clientX - x0) < 3) return;
+    moved = true;
+    const raw = (ev.clientX - x0) / pps;
+    dt = snap(c.at + raw, pts) - c.at;
+    for (const el2 of els) {
+      el2.style.translate = `${dt * pps}px 0`;
+      el2.classList.add('dragging');
+    }
+  };
+  const onUp = () => {
+    removeEventListener('pointermove', onMove);
+    removeEventListener('pointerup', onUp);
+    if (!moved) return selectClip(c.uid);
+    if (!moveMany(r3(dt))) render();
+  };
+  addEventListener('pointermove', onMove);
+  addEventListener('pointerup', onUp);
+}
+
+// 在空白处拖出方框：框选片段
+function marquee(e) {
+  const box = h('div.tl-marquee');
+  const r0 = content.getBoundingClientRect();
+  const x0 = e.clientX - r0.left;
+  const y0 = e.clientY - r0.top;
+  const base = e.metaKey || e.shiftKey ? new Set(S.sel) : new Set();
+  let moved = false;
+  const onMove = (ev) => {
+    const r = content.getBoundingClientRect();
+    const x1 = ev.clientX - r.left;
+    const y1 = ev.clientY - r.top;
+    if (!moved && Math.hypot(x1 - x0, y1 - y0) < 5) return;
+    if (!moved) content.append(box);
+    moved = true;
+    const L = Math.min(x0, x1);
+    const T = Math.min(y0, y1);
+    Object.assign(box.style, { left: `${L}px`, top: `${T}px`, width: `${Math.abs(x1 - x0)}px`, height: `${Math.abs(y1 - y0)}px` });
+    const sel = new Set(base);
+    for (const el of rows.querySelectorAll('.clip[data-uid]')) {
+      const b = el.getBoundingClientRect();
+      const hit = b.right - r.left > L && b.left - r.left < L + Math.abs(x1 - x0) && b.bottom - r.top > T && b.top - r.top < T + Math.abs(y1 - y0);
+      if (hit) sel.add(el.dataset.uid);
+      el.classList.toggle('sel', sel.has(el.dataset.uid));
+    }
+    box.dataset.sel = [...sel].join('\n');
+  };
+  const onUp = () => {
+    removeEventListener('pointermove', onMove);
+    removeEventListener('pointerup', onUp);
+    box.remove();
+    if (moved) setSelection(box.dataset.sel ? box.dataset.sel.split('\n') : []);
+  };
+  addEventListener('pointermove', onMove);
+  addEventListener('pointerup', onUp);
+  return () => moved;
+}
+
 function dragClip(e, c, el, mode) {
   e.preventDefault();
   const x0 = e.clientX;
@@ -319,24 +389,56 @@ function dragClip(e, c, el, mode) {
 }
 
 ruler.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
+  const mk = e.target.closest('.tl-marker');
+  if (mk) return seek(S.markers[Number(mk.dataset.i)].t);
   if (!e.target.closest('.tl-corner')) dragSeek(e);
+});
+ruler.addEventListener('contextmenu', (e) => {
+  const mk = e.target.closest('.tl-marker');
+  if (!mk) return;
+  e.preventDefault();
+  const i = Number(mk.dataset.i);
+  menu(e.clientX, e.clientY, [
+    ['改名…', () => {
+      const name = prompt('标记的名字', S.markers[i].name || '');
+      if (name == null) return;
+      S.markers[i].name = name.trim();
+      saveEditorState();
+      render();
+    }],
+    ['删除标记', () => { S.markers.splice(i, 1); saveEditorState(); render(); }, { danger: true }],
+  ]);
 });
 
 rows.addEventListener('pointerdown', (e) => {
   if (e.button !== 0 || e.target.closest('.tl-head')) return;
   const el = e.target.closest('.clip[data-uid]');
   if (!el) {
-    if (e.target.closest('.tl-lane')) {
-      selectClip(null);
-      dragSeek(e);
-    }
+    if (!e.target.closest('.tl-lane')) return;
+    const x = e.clientX;
+    const movedFn = marquee(e);
+    const up = (ev) => {
+      removeEventListener('pointerup', up);
+      if (!movedFn() && Math.abs(ev.clientX - x) < 5) {
+        if (!e.metaKey && !e.shiftKey) selectClip(null);
+        seek(Math.max(0, laneX(ev.clientX) / pps));
+      }
+    };
+    addEventListener('pointerup', up);
     return;
   }
   const c = clipByUid(el.dataset.uid);
   if (!c) return;
+  if (e.metaKey || e.ctrlKey || e.shiftKey) return selectClip(c.uid, { toggle: true });
+  const edge = e.target.classList.contains('hl') ? 'l' : e.target.classList.contains('hr') ? 'r' : 'move';
+  if (edge === 'move' && S.sel.size > 1 && S.sel.has(c.uid)) {
+    if (S.doc.tracks[c.track].locked) return;
+    return dragGroup(e, c);
+  }
   selectClip(c.uid);
   if (S.doc.tracks[c.track].locked) return;
-  dragClip(e, c, el, e.target.classList.contains('hl') ? 'l' : e.target.classList.contains('hr') ? 'r' : 'move');
+  dragClip(e, c, el, edge);
 });
 
 rows.addEventListener('dblclick', (e) => {
@@ -350,19 +452,26 @@ rows.addEventListener('contextmenu', (e) => {
   const c = el && clipByUid(el.dataset.uid);
   if (!c) return;
   e.preventDefault();
-  selectClip(c.uid);
+  if (!S.sel.has(c.uid)) selectClip(c.uid);
   const locked = S.doc.tracks[c.track].locked;
+  const n = S.sel.size;
   menu(e.clientX, e.clientY, [
-    [c.kind === 'page' ? '打开代码' : '查看文件', () => openFile(c.file)],
+    n > 1 ? h('div.menu-title', {}, `已选中 ${n} 个片段`) : [c.kind === 'page' ? '打开代码' : '查看文件', () => openFile(c.file)],
     null,
-    ['在播放头处切开', () => splitAtPlayhead(), { key: 'S', disabled: locked }],
-    ['复制', () => copySelected(), { key: '⌘C' }],
-    ['粘贴到播放头', () => pasteAtPlayhead(), { key: '⌘V', disabled: !clipboard }],
-    ['复制一份接在后面', () => duplicateSelected(), { key: '⌘D', disabled: locked }],
-    [c.disabled ? '启用' : '停用', () => toggleDisabled(), { key: '⇧E', disabled: locked }],
+    ['在播放头处切开', () => splitAtPlayhead(), { key: '⌘B', disabled: locked }],
+    ['剪切', () => copyMany({ cut: true }), { key: '⌘X', disabled: locked }],
+    ['复制', () => copyMany(), { key: '⌘C' }],
+    ['粘贴到播放头', () => pasteMany(), { key: '⌘V', disabled: !hasClipboard() }],
+    ['复制一份接在后面', () => duplicateSelected(), { key: '⌘D', disabled: locked || n > 1 }],
     null,
-    ['删除', () => deleteSelected(), { key: '⌫', disabled: locked, danger: true }],
-  ]);
+    ['复制属性', () => copyAttrs(), { key: '⇧⌘C' }],
+    ['粘贴属性', () => pasteAttrs(), { key: '⇧⌘V', disabled: locked }],
+    c.kind === 'video' ? ['分离音频', () => detachAudio(), { key: '⌃⇧S', disabled: locked || c.volume <= 0 }] : null,
+    [c.disabled ? '启用' : '停用', () => toggleDisabledMany(), { key: '⇧E', disabled: locked }],
+    null,
+    ['删除', () => deleteMany(), { key: '⌫', disabled: locked, danger: true }],
+    ['波纹删除（后面的片段跟上）', () => deleteMany({ ripple: true }), { key: '⇧⌫', disabled: locked, danger: true }],
+  ].filter((x, i, a) => x !== null || (a[i - 1] != null)));
 });
 
 scroller.addEventListener('wheel', (e) => {
@@ -448,47 +557,16 @@ export function splitAtPlayhead() {
   editFilm((t) => splitClip(t, c.key, r3(S.t), lengthOf(c)));
 }
 
-export function deleteSelected() {
-  const c = clipByUid(S.selected);
-  if (!c) return;
-  if (!editable(c)) return toast('这条轨道已锁定');
-  editFilm((t) => removeClip(t, c.key));
-}
+export const deleteSelected = () => deleteMany();
 
-export function toggleDisabled() {
-  const c = clipByUid(S.selected);
-  if (editable(c)) editFilm((t) => updateClip(t, c.key, { disabled: !c.disabled }));
-}
+export const toggleDisabled = () => toggleDisabledMany();
 
-let clipboard = null;
+export const copySelected = () => copyMany();
+export const pasteAtPlayhead = () => pasteMany();
 
-export function copySelected() {
-  const c = clipByUid(S.selected);
-  if (!c) return;
-  clipboard = { uid: c.uid, track: c.track, kind: c.kind, len: lengthOf(c) };
-  toast(`已复制 ${c.uid}`);
-}
-
-export function pasteAtPlayhead() {
-  if (!clipboard) return;
-  const src = clipByUid(clipboard.uid);
-  if (!src) return toast('复制的片段已经不在了');
-  const at = r3(S.t);
-  let uid = null;
-  editFilm((text) => {
-    let next = duplicateClip(text, src.key, { at });
-    let doc = parseFilm(next);
-    const list = doc.tracks[src.track].clips;
-    uid = list[list.findIndex((x) => x.uid === src.uid) + 1].uid;
-    if (overlapsOn(S.doc, src.track, null, at, clipboard.len) || S.doc.tracks[src.track].locked) {
-      next = addTrack(next, src.kind === 'audio' ? 'bottom' : 'top');
-      doc = parseFilm(next);
-      next = moveClip(next, doc.clips.find((x) => x.uid === uid).key, src.kind === 'audio' ? doc.tracks.length - 1 : 0, {});
-    }
-    return next;
-  });
-  if (uid) selectClip(uid);
-}
+// 缩放：给快捷键用
+export const zoomBy = (k) => setZoom(pps * k);
+export const zoomFit = () => { userZoom = false; render(); };
 
 // 副本接在原片段后面；那里被占了就放到新开的最上面一条轨道
 export function duplicateSelected() {
@@ -515,8 +593,9 @@ export function duplicateSelected() {
 
 on('film', render);
 on('info', render);
+on('markers', render);
 on('select', () => {
-  for (const el of rows.querySelectorAll('.clip[data-uid]')) el.classList.toggle('sel', el.dataset.uid === S.selected);
+  for (const el of rows.querySelectorAll('.clip[data-uid]')) el.classList.toggle('sel', S.sel.has(el.dataset.uid));
 });
 on('time', () => {
   drawPlayhead();

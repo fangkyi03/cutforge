@@ -44,8 +44,8 @@
 | 图层面板（LayersPanel、layers-tree） | 列出页面里的每个元素，可选中、锁定、隐藏、按层级展开 | ⬜ 只能在预览里双击选元素 | 3 |
 | 舞台操作（stage-gesture、stage-crop、stage-mask、StageTransformFrame） | 移动、缩放、旋转手柄，裁剪，蒙版，对齐吸附与测量线 | ◐ 只有移动和四角缩放；没有旋转手柄、裁剪、蒙版、吸附线 | 5 |
 | 预览（ViewerBar、ViewerZoom、PlaybackMenu、FilmFullscreenBar） | 缩放预览、播放倍速、循环、全屏控制条、音量表（AudioMeters） | ◐ 有全屏、音量、倍速（0.5–4×）、循环；没有预览缩放、电平表 | 1 |
-| 时间线编辑（timeline-edit、timeline-drag、timeline-clipboard） | 多选、框选、复制粘贴、波纹删除、范围选择、分离音频、轨道整理、轨道高度 | ◐ 单选、复制粘贴（⌘C／⌘V 到播放头）；没有多选、框选、波纹、范围、分离音频 | 5 |
-| 标记（TimelineMarkers、markers） | 时间线标记，可命名、跳转 | ⬜ | 1 |
+| 时间线编辑（timeline-edit、timeline-drag、timeline-clipboard） | 多选、框选、复制粘贴、波纹删除、范围选择、分离音频、轨道整理、轨道高度 | ◐ 多选、框选、整组拖动、剪切复制粘贴、波纹删除、Q／W 裁到播放头、微移、分离音频、入出点；没有轨道高度、轨道整理、复合片段 | 2 |
+| 标记（TimelineMarkers、markers） | 时间线标记，可命名、跳转 | ✅ M 加标记、⇧M／⌥M 跳转、右键改名删除 | 0 |
 | 文字属性（TextInspector、font-menu、FontFamilyPicker、text-look） | 字体选择（含工程字体）、字重、字距、行高、对齐、描边、阴影 | ◐ 只有文字、颜色、字号 | 3 |
 | 片段外观（clip-look、clip-presets、grade、FilterLayerSection） | 滤镜、调色、混合模式、外观预设、复制粘贴属性（PasteAttrsDialog） | ◐ 只有不透明度、圆角 | 4 |
 | 片段运动（ClipMotionSection、mg-transform） | 进出场动画预设、关键帧运动 | ⬜ | 4 |
@@ -54,10 +54,10 @@
 | 模板（TemplatePicker、template-controls） | 模板库，模板参数面板 | ⬜ | 4 |
 | 素材池（MediaPool、media-folders、media-place） | 文件夹、多选、排序、替换片段素材（clip-replace） | ◐ 有网格、搜索；没有文件夹整理、替换 | 2 |
 | 素材库抽屉（LibraryDrawer、VoicesPane、AudioList、SkillsPane） | 音乐、音效、配音、技能的抽屉，试听、试用 | ⬜（第 2、3 批） | — |
-| 导出中心（ExportCenter、ExportTray、RangePicker、MomentPicker） | 导出队列、选范围导出、挑静帧时刻、导出历史 | ◐ 单个任务对话框，没有范围、队列 | 3 |
+| 导出中心（ExportCenter、ExportTray、RangePicker、MomentPicker） | 导出队列、选范围导出、挑静帧时刻、导出历史 | ◐ 单个任务对话框，可按入出点导出 MP4；没有队列和导出历史 | 2 |
 | 操作历史（OperationHistory、project-history、auto-versions） | 可视化撤销历史，自动版本、带预览的版本列表 | ◐ 内存里的撤销、手动版本 | 3 |
 | 工作区（workspaces、WorkspaceEditor、workspace-dock） | 可拖动停靠的面板布局，保存多套布局 | ⬜ 布局固定 | 5 |
-| 设置（SettingsModal：智能体、模型、服务、快捷键、存储、诊断） | 完整设置页，快捷键可改（keymap） | ◐ 只有“环境”对话框 | 3 |
+| 设置（SettingsModal：智能体、模型、服务、快捷键、存储、诊断） | 完整设置页，快捷键可改（keymap） | ◐ “环境”对话框；快捷键与 OpenFilm 默认键位一致，有一览（?），但不能自定义 | 2 |
 | 智能体对话（chat-marks、studio-refs） | 消息里的文件／片段可点击跳转，`@` 引用 | ◐ 纯文本 | 2 |
 | 多语言（i18n：英、西、日、韩、中） | 五种语言 | ⬜ 只有中文 | 2 |
 | 新功能提示、检查更新（WhatsNew、UpdateButton） | 有 | ⬜ | 1 |

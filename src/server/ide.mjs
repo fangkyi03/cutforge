@@ -125,13 +125,13 @@ export async function startIde({ root, port = 0, open = true }) {
     return lookBusy;
   };
 
-  const startRender = ({ fps = 30, scale = 1, loudness = null } = {}) => {
+  const startRender = ({ fps = 30, scale = 1, loudness = null, range = null } = {}) => {
     if (renderJob) throw new Error('已经有一个导出在进行');
     const rel = `exports/${path.basename(root)}-${stamp()}.mp4`;
     const ctl = new AbortController();
     renderJob = { ctl, file: rel };
     broadcast({ type: 'render', state: 'start', file: rel });
-    renderFilm({ root, out: path.join(root, rel), fps, scale, loudness, signal: ctl.signal, onProgress: (p) => broadcast({ type: 'render', state: 'progress', ...p }) })
+    renderFilm({ root, out: path.join(root, rel), fps, scale, loudness, range: Array.isArray(range) && range[1] > range[0] ? range : null, signal: ctl.signal, onProgress: (p) => broadcast({ type: 'render', state: 'progress', ...p }) })
       .then((r) => broadcast({ type: 'render', state: 'done', file: rel, info: { ...r, out: rel } }))
       .catch((e) => broadcast({ type: 'render', state: 'error', message: String(e.message || e) }))
       .finally(() => { renderJob = null; });
@@ -311,6 +311,19 @@ export async function startIde({ root, port = 0, open = true }) {
         return sendJson(res, { file: startJianying(await json()) });
       case 'POST /api/export':
         return sendJson(res, { file: startExport(await json()) });
+      case 'GET /api/editor-state':
+        try {
+          return sendJson(res, JSON.parse(await fsp.readFile(path.join(root, '.cutforge', 'editor.json'), 'utf8')));
+        } catch {
+          return sendJson(res, { markers: [], range: null });
+        }
+      case 'PUT /api/editor-state': {
+        const body = await json();
+        const markers = (Array.isArray(body.markers) ? body.markers : []).filter((m) => Number.isFinite(m?.t)).slice(0, 500).map((m) => ({ t: Math.round(m.t * 1000) / 1000, name: String(m.name || '').slice(0, 80) }));
+        const range = body.range && Number.isFinite(body.range.in) && Number.isFinite(body.range.out) && body.range.out > body.range.in ? { in: body.range.in, out: body.range.out } : null;
+        await writeAtomic(path.join(root, '.cutforge', 'editor.json'), JSON.stringify({ markers, range }));
+        return sendJson(res, { ok: true });
+      }
       case 'GET /api/versions':
         return sendJson(res, await listVersions(root));
       case 'POST /api/versions': {
