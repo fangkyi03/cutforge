@@ -23,6 +23,8 @@ import * as gen from '../gen.mjs';
 import * as skills from '../skills.mjs';
 import { LLM_PRESETS, llmStatus, writeLlm } from '../agents/builtin.mjs';
 import { usageSummary } from '../agents/usage.mjs';
+import { planZoom, zoomKeyframesCss } from '../autozoom.mjs';
+import { findTool } from '../render/probe.mjs';
 import { announceServer, retireServer, serveRpc } from '../rpc.mjs';
 import { startPreview } from './preview.mjs';
 import { createThumbs } from './thumbs.mjs';
@@ -352,6 +354,30 @@ export async function startIde({ root, port = 0, open = true }) {
             .finally(() => { modelJob = null; });
         }
         return sendJson(res, { ok: true });
+      case 'POST /api/recording/finish': {
+        const body = await json();
+        const src = inProject(body.file);
+        if (!src) return send(res, 403, 'Forbidden');
+        const out = src.replace(/\.webm$/i, '.mp4');
+        const ffmpeg = findTool('ffmpeg');
+        if (!ffmpeg) return send(res, 500, '找不到 ffmpeg');
+        await new Promise((resolve, reject) => {
+          const p = spawn(ffmpeg, ['-y', '-loglevel', 'error', '-i', src, '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-pix_fmt', 'yuv420p', '-r', '30', '-c:a', 'aac', '-b:a', '160k', '-movflags', '+faststart', out]);
+          let err = '';
+          p.stderr.on('data', (d) => { err += d; });
+          p.on('close', (code) => (code === 0 ? resolve() : reject(new Error(err.trim() || '转码失败'))));
+        });
+        await fsp.rm(src, { force: true });
+        return sendJson(res, { file: path.relative(root, out).split(path.sep).join('/') });
+      }
+      case 'POST /api/autozoom': {
+        const body = await json();
+        const abs = inProject(body.file);
+        if (!abs) return send(res, 403, 'Forbidden');
+        const plan = await planZoom(abs, { maxScale: Number(body.maxScale) || 2.2 });
+        const name = `cf-zoom-${String(body.uid || 'clip').replace(/[^\w-]/g, '').slice(0, 30) || 'clip'}`;
+        return sendJson(res, { name, css: zoomKeyframesCss(name, plan), plan });
+      }
       case 'GET /api/usage':
         return sendJson(res, await usageSummary());
       case 'GET /api/llm':

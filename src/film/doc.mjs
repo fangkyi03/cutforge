@@ -615,6 +615,30 @@ export function addCaptionTrack(text, src, label = '') {
   return applyEdits(text, [{ start: at, end: at, text: block }]);
 }
 
+export function upsertKeyframes(text, name, css) {
+  const head = text.search(/<\/head>/i);
+  const styleOpen = /<style[^>]*>/i.exec(text);
+  if (!styleOpen || (head >= 0 && styleOpen.index > head)) {
+    const at = head >= 0 ? head : (/<section/i.exec(text)?.index ?? 0);
+    return `${text.slice(0, at)}<style>\n${css}\n</style>\n${text.slice(at)}`;
+  }
+  const start = styleOpen.index + styleOpen[0].length;
+  const end = text.indexOf('</style>', start);
+  let body = text.slice(start, end);
+  const i = body.search(new RegExp(`@keyframes\\s+${name.replace(/[-]/g, '\\-')}\\s*\\{`));
+  if (i >= 0) {
+    // 找到配对的右括号
+    let depth = 0;
+    let j = body.indexOf('{', i);
+    for (; j < body.length; j++) {
+      if (body[j] === '{') depth++;
+      else if (body[j] === '}' && --depth === 0) break;
+    }
+    body = `${body.slice(0, i)}${css}${body.slice(j + 1)}`;
+  } else body = `${body.replace(/\s*$/, '')}\n${css}\n`;
+  return text.slice(0, start) + body + text.slice(end);
+}
+
 export function kindOfFile(file) {
   const ext = (file.split('.').pop() || '').toLowerCase();
   if (['html', 'htm'].includes(ext)) return 'page';

@@ -90,6 +90,32 @@ export async function renderPage({ root, doc, filmDir, c, len, out, fps, signal 
   }
 }
 
+// 淡入淡出 → 剪映的不透明度关键帧（时间是相对片段开头的微秒）
+function fadeKeyframes([fin, fout], len, alpha = 1) {
+  if (!(fin > 0) && !(fout > 0)) return [];
+  const kf = (t, v) => ({ curveType: 'Line', graphID: '', left_control: { x: 0, y: 0 }, right_control: { x: 0, y: 0 }, id: hex(), time_offset: us(t), values: [v] });
+  const list = [];
+  if (fin > 0) list.push(kf(0, 0), kf(Math.min(fin, len), alpha));
+  if (fout > 0) list.push(kf(Math.max(0, len - fout), alpha), kf(len, 0));
+  return [{ id: hex(), keyframe_list: list.sort((a, b) => a.time_offset - b.time_offset), material_id: '', property_type: 'KFTypeAlpha' }];
+}
+
+// 字幕的文本素材：白字黑描边，居中，按剪映“字幕”类型自动换行
+function textMaterial(text) {
+  const content = {
+    styles: [{
+      fill: { alpha: 1, content: { render_type: 'solid', solid: { alpha: 1, color: [1, 1, 1] } } },
+      range: [0, [...text].length], size: 8, bold: false, italic: false, underline: false,
+      strokes: [{ content: { solid: { alpha: 1, color: [0, 0, 0] } }, width: 0.08 }],
+    }],
+    text,
+  };
+  return {
+    id: hex(), content: JSON.stringify(content), typesetting: 0, alignment: 1, letter_spacing: 0, line_spacing: 0.02,
+    line_feed: 1, line_max_width: 0.82, force_apply_line_max_width: false, check_flag: 15, type: 'subtitle', global_alpha: 1,
+  };
+}
+
 export function placement(c, nat, W, H) {
   const b = c.box;
   const nw = nat.width || W;
@@ -251,10 +277,10 @@ export async function exportJianying({ root, film = 'film.html', name, outDir, f
         M.audio_fades.push(fade);
         refs.push(fade.id);
       }
-      if (c.kind !== 'page' && (c.fade[0] || c.fade[1])) notes.push(`${c.uid}：画面的淡入淡出没有转成剪映的动画，只保留了声音的淡入淡出`);
+      const alphaKeys = c.kind !== 'page' ? fadeKeyframes(c.fade, len, clip.alpha) : [];
       vSegs.push(segmentBase(mat.id, c.at, len, {
         source_timerange: { start: us(srcIn), duration: us(len * speedV) }, speed: speedV, volume: vol, extra_material_refs: refs,
-        is_tone_modify: false, clip, uniform_scale: { on: true, value: 1 }, hdr_settings: { intensity: 1, mode: 1, nits: 1000 },
+        is_tone_modify: false, clip, uniform_scale: { on: true, value: 1 }, hdr_settings: { intensity: 1, mode: 1, nits: 1000 }, common_keyframes: alphaKeys,
       }));
       end = Math.max(end, c.at + len);
     }
@@ -262,8 +288,33 @@ export async function exportJianying({ root, film = 'film.html', name, outDir, f
     if (aSegs.length) tracks.push({ type: 'audio', segs: aSegs, mute: tr.muted });
   }
 
-  // 剪映：音频轨在前、视频轨按下→上；render_index 越大越靠上
-  const ordered = [...tracks.filter((t) => t.type === 'audio'), ...tracks.filter((t) => t.type === 'video')];
+  // 字幕轨 → 剪映自己的字幕（文本片段），在剪映里可以直接改字和样式
+  let captionCount = 0;
+  for (const tr of doc.tracks) {
+    if (!tr.caption || tr.hidden) continue;
+    let cues = [];
+    try {
+      cues = parseVtt(await fsp.readFile(path.resolve(filmDir, tr.caption.file), 'utf8'));
+    } catch { continue; }
+    const segs = [];
+    for (const q of cues) {
+      const mat = textMaterial(q.text);
+      M.texts.push(mat);
+      const speed = { curve_speed: null, id: hex(), mode: 0, speed: 1, type: 'speed' };
+      M.speeds.push(speed);
+      segs.push(segmentBase(mat.id, q.start, q.end - q.start, {
+        source_timerange: null, speed: 1, volume: 1, extra_material_refs: [speed.id], is_tone_modify: false,
+        clip: { alpha: 1, flip: { horizontal: false, vertical: false }, rotation: 0, scale: { x: 1, y: 1 }, transform: { x: 0, y: -0.8 } },
+        uniform_scale: { on: true, value: 1 },
+      }));
+      end = Math.max(end, q.end);
+      captionCount++;
+    }
+    if (segs.length) tracks.push({ type: 'text', segs, mute: false });
+  }
+
+  // 剪映：音频轨在前，视频轨按下→上，字幕在最上；render_index 越大越靠上
+  const ordered = [...tracks.filter((t) => t.type === 'audio'), ...tracks.filter((t) => t.type === 'video'), ...tracks.filter((t) => t.type === 'text')];
   content.tracks = ordered.map((t, i) => ({
     attribute: t.mute ? 1 : 0, flag: 0, id: hex(), is_default_name: true, name: '',
     segments: t.segs.map((s) => ({ ...s, render_index: i, track_render_index: 0 })), type: t.type,
@@ -286,7 +337,7 @@ export async function exportJianying({ root, film = 'film.html', name, outDir, f
     }
   }
   await fsp.rm(path.join(root, '.cutforge', 'jy'), { recursive: true, force: true });
-  return { folder, name, duration: end, videoTracks: tracks.filter((t) => t.type === 'video').length, audioTracks: tracks.filter((t) => t.type === 'audio').length, pages, subtitles: subs, notes };
+  return { folder, name, duration: end, captions: captionCount, videoTracks: tracks.filter((t) => t.type === 'video').length, audioTracks: tracks.filter((t) => t.type === 'audio').length, pages, subtitles: subs, notes };
 }
 
 async function imageSize(file) {

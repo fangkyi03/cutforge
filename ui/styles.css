@@ -428,3 +428,6 @@ kbd { font: 11px var(--mono); color: var(--faint); margin-left: auto; padding-le
 .usage th { color: var(--dim); font-weight: 600; }
 .custom select { min-width: 150px; }
 .reply a.ref, .msg a.ref { color: var(--accent); font-family: var(--mono); font-size: .92em; text-decoration: none; border-bottom: 1px dashed currentColor; }
+#recBtn.recording { color: #fff; background: var(--bad); }
+#recBtn.recording::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #fff; animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0; } }

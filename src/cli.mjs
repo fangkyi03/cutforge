@@ -181,7 +181,7 @@ export async function main(argv) {
   if (cmd === 'jianying') {
     const { exportJianying, jianyingDraftRoots } = await import('./export/jianying.mjs');
     const r = await exportJianying({ root: project, onProgress: (p) => process.stderr.write(`${p.text}\n`) });
-    console.log(`已导出剪映草稿 ${r.folder}\n${r.videoTracks} 条视频轨、${r.audioTracks} 条音频轨，${r.pages} 个页面渲染成视频${r.subtitles.length ? `，字幕 ${r.subtitles.join('、')}` : ''}`);
+    console.log(`已导出剪映草稿 ${r.folder}\n${r.videoTracks} 条视频轨、${r.audioTracks} 条音频轨，${r.pages} 个页面渲染成视频${r.captions ? `，${r.captions} 句剪映字幕` : ''}${r.subtitles.length ? `（另存 ${r.subtitles.join('、')}）` : ''}`);
     for (const n of r.notes) console.log(`! ${n}`);
     const target = jianyingDraftRoots()[0];
     console.log(target ? `把这个文件夹拷进 ${target}，重开剪映即可` : '没找到剪映的草稿目录；装好剪映后把这个文件夹拷进它的草稿目录');

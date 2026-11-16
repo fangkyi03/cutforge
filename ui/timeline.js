@@ -6,6 +6,7 @@ import {
 import { S, $, h, add, on, api, clamp, editFilm, lengthOf, localDuration, selectClip, setSelection, clipByUid, seek, toast, undo, redo, fmtTime, enc, menu, saveEditorState } from './store.js';
 import { libraryDrop } from './library.js';
 import { transcribeClip } from './generate.js';
+import { autoZoom } from './record.js';
 import { deleteMany, moveMany, toggleDisabledMany, detachAudio, copyMany, pasteMany, hasClipboard, copyAttrs, pasteAttrs } from './edit-ops.js';
 import { icon } from './icons.js';
 import { openFile } from './editor.js';
@@ -469,6 +470,7 @@ rows.addEventListener('contextmenu', (e) => {
     ['复制属性', () => copyAttrs(), { key: '⇧⌘C' }],
     ['粘贴属性', () => pasteAttrs(), { key: '⇧⌘V', disabled: locked }],
     c.kind === 'video' ? ['分离音频', () => detachAudio(), { key: '⌃⇧S', disabled: locked || c.volume <= 0 }] : null,
+    c.kind === 'video' ? ['自动运镜（按画面变化推近）', () => autoZoom(c), { disabled: locked }] : null,
     c.kind === 'video' || c.kind === 'audio' ? ['语音转字幕', () => transcribeClip(c)] : null,
     c.kind === 'video' || c.kind === 'audio' ? ['重新识别语音', () => transcribeClip(c, { fresh: true })] : null,
     [c.disabled ? '启用' : '停用', () => toggleDisabledMany(), { key: '⇧E', disabled: locked }],

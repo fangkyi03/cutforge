@@ -177,3 +177,16 @@ test('页面元素的覆盖项', async () => {
   assert.deepEqual(c.overrides, [{ fade: [0.3, 0] }]);
   assert.equal(setElementOverride(FILM, '1:0', '#x', { text: 'a' }), FILM);
 });
+
+test('往 film.html 的 <style> 里写关键帧', async () => {
+  const { upsertKeyframes } = await import('../src/film/doc.mjs');
+  let out = upsertKeyframes(FILM, 'cf-zoom-a', '@keyframes cf-zoom-a {\n  0% { scale: 1; }\n  100% { scale: 2; }\n}');
+  assert.match(parseFilm(out).css, /@keyframes cf-zoom-a \{[\s\S]*scale: 2/);
+  out = upsertKeyframes(out, 'cf-zoom-a', '@keyframes cf-zoom-a {\n  0% { scale: 1; }\n  100% { scale: 3; }\n}');
+  assert.equal((parseFilm(out).css.match(/@keyframes cf-zoom-a/g) || []).length, 1);
+  assert.match(parseFilm(out).css, /scale: 3/);
+  assert.match(parseFilm(out).css, /\.card \{ object-fit/);
+  const bare = upsertKeyframes('<meta name="viewport" content="width=10, height=10">\n<section></section>\n', 'k', '@keyframes k { 0% { opacity: 0; } }');
+  assert.match(parseFilm(bare).css, /@keyframes k/);
+  assert.deepEqual(parseFilm(bare).problems, []);
+});

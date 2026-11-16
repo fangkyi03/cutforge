@@ -12,6 +12,7 @@ import { drawProblems, onLookEvent, runLook } from './problems.js';
 import { forget } from './thumbs.js';
 import { loadLibrary } from './library.js';
 import { loadBoard, toggleBoard } from './board.js';
+import { toggleRecording } from './record.js';
 
 // ---------------------------------------------------------------- 标签、分隔条、主题
 
@@ -334,7 +335,7 @@ function exportDialog() {
   const mp4Box = h('div', {}, h('label', {}, h('span', {}, '帧率'), fps), h('label', {}, h('span', {}, '尺寸'), scale),
     h('p.hint', {}, `H.264 MP4，时长 ${fmtTime(S.info.duration)}，存到工程的 exports/。`));
   const jyBox = h('div', {},
-    h('p.hint', {}, '生成剪映专业版的草稿文件夹，在剪映里接着剪。视频、图片、声音保持分轨，位置、缩放、变速、音量、淡入淡出都带过去；页面先渲染成透明背景的视频再放进去；字幕另存为 .srt。片段的 CSS 外观（圆角、滤镜、动画）剪映里没有对应。'),
+    h('p.hint', {}, '生成剪映专业版的草稿文件夹，在剪映里接着剪。视频、图片、声音保持分轨，位置、缩放、变速、音量、淡入淡出都带过去；页面先渲染成透明背景的视频再放进去；字幕变成剪映自己的字幕（也另存一份 .srt）；淡入淡出变成不透明度关键帧。片段的 CSS 外观（圆角、滤镜、动画）剪映里没有对应。'),
     h('label.check', {}, install, S.jianyingRoot ? '直接放进剪映的草稿目录（重开剪映就能看到）' : '没找到剪映的草稿目录：导出到 exports/jianying/，再手动拷进去'),
     h('p.hint.warn', {}, '按剪映 5.9 的草稿格式生成。剪映 6 以后的版本会加密草稿，能否打开取决于你的剪映版本。'));
   const OTHER = { gif: 'GIF 动图', webm: '透明视频 WebM（VP9）', mov: '透明视频 MOV（ProRes 4444）', audio: '声音：混音 WAV + MP3', stems: '声音：每条轨一个 WAV', subtitles: '字幕 SRT + VTT', still: `静帧 PNG（播放头 ${fmtTime(S.t)}）`, slides: '幻灯片 PDF（每个镜头一页）', fcpxml: 'Final Cut／DaVinci 时间线（FCPXML）' };
@@ -597,6 +598,7 @@ async function boot() {
   $('#envBtn').onclick = envDialog;
   $('#versionsBtn').onclick = versionsDialog;
   $('#keysBtn').onclick = shortcutsDialog;
+  $('#recBtn').onclick = toggleRecording;
   for (const b of $$('#modeSeg button')) b.onclick = () => toggleBoard(b.dataset.mode === 'board');
   on('layout', () => { const board = !$('#board').classList.contains('hidden'); for (const b of $$('#modeSeg button')) b.classList.toggle('on', (b.dataset.mode === 'board') === board); });
   if (!state.hasCodeMirror) log('没有安装 CodeMirror（在 CutForge 目录运行 npm install），代码编辑器暂用纯文本框');

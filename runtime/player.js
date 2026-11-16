@@ -213,6 +213,7 @@ function layout(rc) {
   st.height = `${h}px`;
   st.rotate = b.rotate ? `${b.rotate}deg` : '';
   st.zIndex = String(tracks.length - rc.clip.track);
+  st.overflow = /cf-zoom-/.test(rc.clip.look) ? 'hidden' : '';
 }
 
 // ---------------------------------------------------------------- 载入
