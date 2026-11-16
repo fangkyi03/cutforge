@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>CutForge</title>
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { display: grid; place-items: center; background: #eceef2; color: #636c7b; font: 14px -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  @media (prefers-color-scheme: dark) { body { background: #0a0b0e; color: #8e97a8; } }
+  .box { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+  .spin { width: 22px; height: 22px; border: 2.5px solid #5865f233; border-top-color: #5865f2; border-radius: 50%; animation: s .8s linear infinite; }
+  @keyframes s { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="box"><svg viewBox="0 0 24 24" width="44" height="44"><rect x="2" y="4" width="20" height="16" rx="4" fill="#5865f2"/><path d="M10 8.500v7l6-3.500z" fill="#fff"/></svg><div class="spin"></div><div>正在启动 CutForge…</div></div>
+</body>
+</html>

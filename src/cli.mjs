@@ -1,5 +1,6 @@
 // 命令行：人和智能体共用。
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { defaultProjectDir, ensureProject } from './project.mjs';
 import { serverFor, call } from './rpc.mjs';
@@ -27,7 +28,7 @@ function parseArgs(argv) {
     if (a.startsWith('--')) {
       const eq = a.indexOf('=');
       if (eq > 0) flags[a.slice(2, eq)] = a.slice(eq + 1);
-      else if (i + 1 < argv.length && !argv[i + 1].startsWith('--') && !['json', 'direct', 'no-open', 'help'].includes(a.slice(2))) flags[a.slice(2)] = argv[++i];
+      else if (i + 1 < argv.length && !argv[i + 1].startsWith('--') && !['json', 'direct', 'no-open', 'help', 'last'].includes(a.slice(2))) flags[a.slice(2)] = argv[++i];
       else flags[a.slice(2)] = true;
     } else pos.push(a);
   }
@@ -47,11 +48,22 @@ export async function main(argv) {
   if (flags.help || cmd === 'help') return console.log(HELP);
 
   if (cmd === 'open' || cmd === 'new') {
+    // 桌面版用 --last：打开上次的工程，没有就新建一个
+    const lastFile = path.join(process.env.CUTFORGE_HOME || path.join(os.homedir(), '.cutforge'), 'last-project');
     let dir = pos[1] ? path.resolve(pos[1]) : null;
-    if (!dir) dir = fs.existsSync(path.join(process.cwd(), 'film.html')) ? process.cwd() : defaultProjectDir();
+    if (!dir && flags.last) {
+      try {
+        const last = fs.readFileSync(lastFile, 'utf8').trim();
+        if (fs.existsSync(path.join(last, 'film.html'))) dir = last;
+      } catch { /* 第一次打开 */ }
+    }
+    if (!dir) dir = !flags.last && fs.existsSync(path.join(process.cwd(), 'film.html')) ? process.cwd() : defaultProjectDir();
     const root = await ensureProject(dir);
+    fs.mkdirSync(path.dirname(lastFile), { recursive: true });
+    fs.writeFileSync(lastFile, root);
     const { startIde } = await import('./server/ide.mjs');
     const ide = await startIde({ root, port: flags.port ? Number(flags.port) : 0, open: !flags['no-open'] });
+    console.log(`CUTFORGE_URL ${ide.url}`);
     console.log(`CutForge 已打开工程 ${root}\n  ${ide.url}\n  （请用 Chrome 或 Edge 打开；按 Ctrl+C 退出）`);
     return;
   }

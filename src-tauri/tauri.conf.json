@@ -1,0 +1,48 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "CutForge",
+  "version": "0.2.0",
+  "identifier": "io.github.fangkyi03.cutforge",
+  "build": {
+    "frontendDist": "loading"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "app", "nsis"],
+    "category": "Video",
+    "shortDescription": "让编码智能体做视频、让人随手改的本地 IDE",
+    "copyright": "Copyright (c) 2026 CutForge contributors. MIT License.",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "resources": {
+      "../bin/": "app/bin/",
+      "../src/": "app/src/",
+      "../ui/": "app/ui/",
+      "../runtime/": "app/runtime/",
+      "../manual/": "app/manual/",
+      "../styles/": "app/styles/",
+      "../templates/": "app/templates/",
+      "../examples/": "app/examples/",
+      "../package.json": "app/package.json",
+      "../node_modules/codemirror/lib/": "app/node_modules/codemirror/lib/",
+      "../node_modules/codemirror/mode/": "app/node_modules/codemirror/mode/",
+      "../node_modules/codemirror/addon/": "app/node_modules/codemirror/addon/",
+      "../node_modules/codemirror/package.json": "app/node_modules/codemirror/package.json",
+      "node/": "node/"
+    },
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    },
+    "windows": {
+      "nsis": {
+        "languages": ["SimpChinese", "English"],
+        "installMode": "currentUser"
+      }
+    }
+  }
+}
